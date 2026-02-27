@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CARLA Control Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🚗</div>
+      CARLA Control Panel
+    </div>
+    <div class="header-right">
+      <button class="btn btn-pink btn-sm" id="screenshotBtn" onclick="takeScreenshot()" style="display:none">📷
+        Screenshot</button>
+      <div id="statusBadge" class="status-badge disconnected">
+        <div class="status-dot"></div>
+        <span id="statusText">Disconnected</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <!-- Connection -->
+      <div class="card">
+        <div class="card-header">🔌 Connection</div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Host Address</label>
+            <input type="text" id="hostInput" value="localhost" placeholder="IP or hostname" list="hostHistory" />
+            <datalist id="hostHistory"></datalist>
+          </div>
+          <div class="form-row">
+            <div><label>Port</label><input type="number" id="portInput" value="2000" /></div>
+            <div><label>Timeout (s)</label><input type="number" id="timeoutInput" value="10" /></div>
+          </div>
+          <button class="btn btn-primary btn-full" id="connectBtn" onclick="connect()">⚡ Connect</button>
+          <button class="btn btn-danger btn-full" id="disconnectBtn" style="margin-top:7px;display:none"
+            onclick="disconnect()">✕ Disconnect</button>
+        </div>
+      </div>
+
+      <!-- Server Info -->
+      <div class="card" id="serverInfoCard" style="display:none">
+        <div class="card-header">📡 Server Info</div>
+        <div class="card-body">
+          <div class="info-row"><span class="key">Host</span><span class="val" id="infoHost">—</span></div>
+          <div class="info-row"><span class="key">Port</span><span class="val" id="infoPort">—</span></div>
+          <div class="info-row"><span class="key">Map</span><span class="val" id="infoMap">—</span></div>
+          <div class="info-row"><span class="key">Actors</span><span class="val" id="infoActors">—</span></div>
+          <hr style="margin: 12px 0;" />
+          <button class="btn btn-warning btn-full btn-sm" onclick="toggleDebugBboxes()" id="debugBoxesBtn">🔳 Toggle
+            Debug BBoxes</button>
+        </div>
+      </div>
+
+      <!-- Spectator Live -->
+      <div class="card" id="spectatorLiveCard" style="display:none">
+        <div class="card-header">
+          📷 Spectator
+          <button class="btn btn-sm btn-cyan" onclick="fetchSpectator()">↻</button>
+        </div>
+        <div class="card-body">
+          <div class="section-title">Position</div>
+          <div class="coord-display">
+            <div class="coord-cell">
+              <div class="coord-key">X</div>
+              <div class="coord-val" id="sX">—</div>
+            </div>
+            <div class="coord-cell">
+              <div class="coord-key">Y</div>
+              <div class="coord-val" id="sY">—</div>
+            </div>
+            <div class="coord-cell">
+              <div class="coord-key">Z</div>
+              <div class="coord-val" id="sZ">—</div>
+            </div>
+          </div>
+          <div class="section-title">Rotation</div>
+          <div class="coord-display">
+            <div class="coord-cell">
+              <div class="coord-key">Pitch</div>
+              <div class="coord-val" id="sPitch">—</div>
+            </div>
+            <div class="coord-cell">
+              <div class="coord-key">Yaw</div>
+              <div class="coord-val" id="sYaw">—</div>
+            </div>
+            <div class="coord-cell">
+              <div class="coord-key">Roll</div>
+              <div class="coord-val" id="sRoll">—</div>
+            </div>
+          </div>
+          <hr />
+          <div class="section-title">Move To</div>
+          <div class="form-row3">
+            <div><label>X</label><input type="number" id="specX" value="0" /></div>
+            <div><label>Y</label><input type="number" id="specY" value="0" /></div>
+            <div><label>Z</label><input type="number" id="specZ" value="50" /></div>
+          </div>
+          <div class="form-row3" style="margin-bottom:10px">
+            <div><label>Pitch</label><input type="number" id="specPitch" value="-90" /></div>
+            <div><label>Yaw</label><input type="number" id="specYaw" value="0" /></div>
+            <div><label>Roll</label><input type="number" id="specRoll" value="0" /></div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="moveSpectator()">🎯 Move Camera</button>
+
+          <hr style="margin: 14px 0;" />
+          <div class="section-title">Saved Locations</div>
+          <div class="form-row" style="gap:5px; margin-bottom: 8px;">
+            <input type="text" id="locName" placeholder="Name..." style="flex:1" />
+            <button class="btn btn-success btn-sm" onclick="saveSpectatorPosition()">💾 Save</button>
+          </div>
+          <div class="form-group">
+            <select id="savedLocations" onchange="loadSpectatorPosition(this.value)">
+              <option value="">-- Load Location --</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="card" id="mapCard" style="display:none">
+        <div class="card-header">🗺 Map</div>
+        <div class="card-body">
+          <div class="form-group"><label>Select Map</label><select id="mapSelect"></select></div>
+          <button class="btn btn-cyan btn-full" onclick="loadMap()">🔄 Load Map</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- Stats -->
+      <div class="stats-grid" id="statsRow" style="display:none">
+        <div class="stat-card">
+          <div class="stat-value" id="statActors">0</div>
+          <div class="stat-label">Actors</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statVehicles">0</div>
+          <div class="stat-label">Vehicles</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statWalkers">0</div>
+          <div class="stat-label">Walkers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statSensors">0</div>
+          <div class="stat-label">Sensors</div>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div id="mainTabs" style="display:none">
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab('spawn',this)">🚗 Spawn</button>
+          <button class="tab" onclick="switchTab('weather',this)">🌤 Weather</button>
+          <button class="tab" onclick="switchTab('traffic',this)">🚦 Traffic Lights</button>
+          <button class="tab" onclick="switchTab('actors',this)">📋 Actors</button>
+          <button class="tab" onclick="switchTab('screenshot',this)">📷 Screenshot</button>
+          <button class="tab" onclick="switchTab('environment',this)">🌲 Objects</button>
+          <button class="tab" onclick="switchTab('live',this)">📹 Live Stream</button>
+          <button class="tab" onclick="switchTab('log',this)">📟 Log</button>
+        </div>
+
+        <!-- ── SPAWN TAB ── -->
+        <div class="tab-content active" id="tab-spawn">
+          <div class="spawn-grid">
+
+            <!-- Spawn Vehicle -->
+            <div class="card">
+              <div class="card-header">🚘 Spawn Vehicle</div>
+              <div class="card-body">
+                <div class="form-group"><label>Blueprint</label><select id="vehicleBp"></select></div>
+                <div class="form-group">
+                  <label>Color (R,G,B)</label>
+                  <div class="color-wrap">
+                    <input type="color" id="colorPicker" value="#ff0000" oninput="syncColor(this)" />
+                    <input type="text" id="colorText" value="255,0,0" oninput="syncColorText(this)" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
+                    <input type="checkbox" id="autopilotCb" checked style="width:auto" />
+                    Autopilot
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
+                    <input type="checkbox" id="atSpectatorCb" style="width:auto" />
+                    Spawn at Spectator
+                  </label>
+                </div>
+                <button class="btn btn-primary btn-full" onclick="spawnVehicle()">+ Spawn Vehicle</button>
+              </div>
+            </div>
+
+            <!-- Spawn NPCs -->
+            <div class="card">
+              <div class="card-header">🚦 Spawn NPCs</div>
+              <div class="card-body">
+                <div class="form-group"><label>Vehicle Count</label><input type="number" id="npcCount" value="10"
+                    min="1" max="300" /></div>
+                <div class="form-group"><label>Radius from Spectator (0=random)</label><input type="number"
+                    id="npcRadius" value="0" min="0" /></div>
+                <button class="btn btn-success btn-full" onclick="spawnNPC()">+ Spawn Vehicles</button>
+                <div class="form-group" style="margin-top:14px"><label>Walker Count</label><input type="number"
+                    id="walkerCount" value="5" min="1" /></div>
+                <button class="btn btn-cyan btn-full" onclick="spawnWalkers()">+ Spawn Walkers</button>
+              </div>
+            </div>
+
+            <!-- Spawn Any -->
+            <div class="card">
+              <div class="card-header">🎯 Spawn Any at Spectator</div>
+              <div class="card-body">
+                <div class="form-group"><label>Filter</label>
+                  <div style="display:flex;gap:7px">
+                    <input type="text" id="bpFilter" placeholder="vehicle.*, walker.*, sensor.*" />
+                    <button class="btn btn-sm btn-cyan" onclick="filterBps()">Go</button>
+                  </div>
+                </div>
+                <div class="form-group"><label>Blueprint</label><select id="anyBp"></select></div>
+                <div class="form-group"><label>Z Offset</label><input type="number" id="anyZOffset" value="1.0"
+                    step="0.5" /></div>
+                <div class="form-group">
+                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
+                    <input type="checkbox" id="anyAutopilot" checked style="width:auto" />
+                    Autopilot (vehicles)
+                  </label>
+                </div>
+                <button class="btn btn-pink btn-full" onclick="spawnAny()">⚡ Spawn at Spectator</button>
+              </div>
+            </div>
+
+            <!-- Spawn Camera -->
+            <div class="card">
+              <div class="card-header">📷 Spawn Camera at Spectator</div>
+              <div class="card-body">
+                <div class="form-row">
+                  <div><label>Width</label><input type="number" id="camW" value="1280" /></div>
+                  <div><label>Height</label><input type="number" id="camH" value="720" /></div>
+                </div>
+                <div class="form-group"><label>FOV</label><input type="number" id="camFov" value="90" /></div>
+                <button class="btn btn-warning btn-full" onclick="spawnCamera()">📷 Spawn Camera</button>
+                <hr />
+                <div class="btn-grid">
+                  <button class="btn btn-danger" onclick="destroyFilter('vehicle.*')">✕ All Vehicles</button>
+                  <button class="btn btn-danger" onclick="destroyFilter('walker.*')">✕ All Walkers</button>
+                  <button class="btn btn-danger" onclick="destroyFilter('sensor.*')">✕ All Sensors</button>
+                  <button class="btn btn-danger" onclick="destroyFilter('*')">✕ All Actors</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── WEATHER TAB ── -->
+        <div class="tab-content" id="tab-weather">
+          <div class="card">
+            <div class="card-header">🌤 Weather Control</div>
+            <div class="card-body">
+              <div class="section-title">Quick Presets</div>
+              <div class="preset-grid">
+                <button class="preset-btn" onclick="weatherPreset('clear')"><span>☀️</span>Clear</button>
+                <button class="preset-btn" onclick="weatherPreset('cloudy')"><span>☁️</span>Cloudy</button>
+                <button class="preset-btn" onclick="weatherPreset('rain')"><span>🌧️</span>Rain</button>
+                <button class="preset-btn" onclick="weatherPreset('storm')"><span>⛈️</span>Storm</button>
+                <button class="preset-btn" onclick="weatherPreset('night')"><span>🌙</span>Night</button>
+                <button class="preset-btn" onclick="weatherPreset('fog')"><span>🌫️</span>Fog</button>
+                <button class="preset-btn" onclick="weatherPreset('sunset')"><span>🌅</span>Sunset</button>
+              </div>
+              <hr />
+              <div class="section-title">Fine Control</div>
+              <div id="weatherSliders"></div>
+              <button class="btn btn-primary btn-full" onclick="applyWeather()">✓ Apply Weather</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── TRAFFIC LIGHTS TAB ── -->
+        <div class="tab-content" id="tab-traffic">
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-header">
+              🚦 Traffic Lights Near Spectator
+              <div style="display:flex;gap:7px;align-items:center">
+                <label style="margin:0;text-transform:none;white-space:nowrap">Radius:</label>
+                <input type="number" id="tlRadius" value="150" style="width:70px" />
+                <button class="btn btn-sm btn-cyan" onclick="loadTrafficLights()">↻ Refresh</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="section-title">Global Controls</div>
+              <div class="btn-grid" style="margin-bottom:14px">
+                <button class="btn btn-success" onclick="freezeAll('green')">🟢 All Green</button>
+                <button class="btn btn-danger" onclick="freezeAll('red')">🔴 All Red</button>
+                <button class="btn btn-warning" onclick="freezeAll('yellow')">🟡 All Yellow</button>
+                <button class="btn btn-cyan" onclick="unfreezeAll()">▶ Resume All</button>
+              </div>
+              <div class="section-title">Nearby Lights</div>
+              <div class="actor-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>State</th>
+                      <th>Dist(m)</th>
+                      <th>Set State</th>
+                      <th>Freeze</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tlTableBody">
+                    <tr>
+                      <td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Click Refresh</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ACTORS TAB ── -->
+        <div class="tab-content" id="tab-actors">
+          <div class="card">
+            <div class="card-header">
+              📋 Actor List
+              <button class="btn btn-sm btn-cyan" onclick="refreshStatus()">↻ Refresh</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="actor-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Type</th>
+                      <th>X</th>
+                      <th>Y</th>
+                      <th>Z</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="actorTableBody">
+                    <tr>
+                      <td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No actors</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── SCREENSHOT TAB ── -->
+        <div class="tab-content" id="tab-screenshot">
+          <div class="card">
+            <div class="card-header">📷 Screenshot from Spectator View</div>
+            <div class="card-body">
+              <div class="form-row">
+                <div><label>Width</label><input type="number" id="ssW" value="1280" /></div>
+                <div><label>Height</label><input type="number" id="ssH" value="720" /></div>
+              </div>
+              <div class="form-row">
+                <div><label>FOV</label><input type="number" id="ssFov" value="90" /></div>
+                <div></div>
+              </div>
+              <button class="btn btn-primary" onclick="takeScreenshot()" id="ssBtn">📷 Capture</button>
+              <button class="btn btn-success" onclick="downloadScreenshot()" id="ssDownloadBtn"
+                style="display:none;margin-left:8px">⬇ Download</button>
+              <div id="ssStatus" style="color:var(--muted);font-size:.78rem;margin-top:8px"></div>
+              <img id="screenshotImg" alt="Screenshot" onclick="downloadScreenshot()" title="Click to download" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ENVIRONMENT TAB ── -->
+        <div class="tab-content" id="tab-environment">
+          <div class="card">
+            <div class="card-header">🌲 Environment Objects Toggle</div>
+            <div class="card-body">
+              <div class="form-group"><label>Object Type</label>
+                <select id="envObjectSelect">
+                  <option value="Vegetation">Vegetation (Trees, etc.)</option>
+                  <option value="Buildings">Buildings</option>
+                  <option value="Car">Car</option>
+                  <option value="Truck">Truck</option>
+                  <option value="Bus">Bus</option>
+                  <option value="Motorcycle">Motorcycle</option>
+                  <option value="Bicycle">Bicycle</option>
+                  <option value="Pedestrians">Pedestrians</option>
+                  <option value="Fences">Fences</option>
+                  <option value="Poles">Poles</option>
+                  <option value="TrafficSigns">Traffic Signs</option>
+                  <option value="RoadLines">Road Lines</option>
+                  <option value="Roads">Roads</option>
+                  <option value="Sidewalks">Sidewalks</option>
+                  <option value="Walls">Walls</option>
+                  <option value="Sky">Sky</option>
+                  <option value="Ground">Ground</option>
+                  <option value="Bridge">Bridge</option>
+                  <option value="RailTrack">RailTrack</option>
+                  <option value="GuardRail">GuardRail</option>
+                  <option value="TrafficLight">TrafficLight</option>
+                  <option value="Static">Static</option>
+                  <option value="Dynamic">Dynamic</option>
+                  <option value="Water">Water</option>
+                  <option value="Terrain">Terrain</option>
+                  <option value="Any">Any</option>
+                  <option value="NONE">NONE</option>
+                </select>
+              </div>
+              <div class="btn-grid">
+                <button class="btn btn-danger" onclick="toggleEnvObject(false)">🚫 Hide</button>
+                <button class="btn btn-success" onclick="toggleEnvObject(true)">👁️ Show</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── LIVE STREAM TAB ── -->
+        <div class="tab-content" id="tab-live">
+          <div class="card">
+            <div class="card-header">📹 Live Camera Stream</div>
+            <div class="card-body">
+              <img id="liveStream" src=""
+                style="width:100%;border-radius:var(--radius-sm);display:none;border:1px solid var(--border);" />
+              <div id="liveStreamStatus" style="color:var(--muted);text-align:center;padding:20px;">Stream inactive.
+              </div>
+              <button class="btn btn-cyan btn-full" onclick="startStream()" id="streamBtn" style="margin-top:10px;">▶
+                Start Stream</button>
+              <button class="btn btn-danger btn-full" onclick="stopStream()" id="streamStopBtn"
+                style="margin-top:10px;display:none;">⏹ Stop Stream</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── LOG TAB ── -->
+        <div class="tab-content" id="tab-log">
+          <div class="card">
+            <div class="card-header">
+              📟 Activity Log
+              <button class="btn btn-sm btn-warning" onclick="clearLog()">Clear</button>
+            </div>
+            <div class="card-body">
+              <div class="log-box" id="logBox"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Disconnected placeholder -->
+      <div id="disconnectedPlaceholder">
+        <div style="font-size:3.5rem">🚗</div>
+        <div style="font-size:1rem;font-weight:600;color:var(--muted)">Connect to CARLA to begin</div>
+        <div style="font-size:.8rem;color:var(--muted)">Enter host and port in the sidebar</div>
+      </div>
+
+    </main>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
