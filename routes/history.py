@@ -101,7 +101,14 @@ def connect():
 
         # ── Traffic Manager: strict real-life settings ─────────────────────
         tm = client.get_trafficmanager(8000)
-        tm.set_synchronous_mode(False)
+        
+        world    = client.get_world()
+        map_name = world.get_map().name
+
+        # Critical: TM sync mode must exactly match server sync mode, 
+        # otherwise vehicles skip physics ticks and blow through red lights.
+        settings = world.get_settings()
+        tm.set_synchronous_mode(settings.synchronous_mode)
 
         # Global speed: 10 % under limit → cautious, realistic pacing
         tm.global_percentage_speed_difference(10.0)
@@ -109,11 +116,12 @@ def connect():
         # 3 m following gap → safe stopping distance
         tm.set_global_distance_to_leading_vehicle(3.0)
 
+        # Global fallbacks: 100% obey lights, signs, and vehicles
+        tm.global_percentage_speed_difference(10.0)
+        # Note: TrafficManager doesn't have a global set_ignore_lights_percentage
+        # so this must be handled entirely on the per-vehicle basis when spawned.
+
         tm_port = tm.get_port()
-
-
-        world    = client.get_world()
-        map_name = world.get_map().name
 
         with state_lock:
             carla_state.update({
