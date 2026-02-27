@@ -57,13 +57,14 @@ def _apply_tm_rules(tm, actor):
         tm.random_right_lanechange_percentage(actor, 0.0)
 
         # Force keep-right discipline — prevents wrong-way U-turns
-        tm.keep_right_rule_percentage(actor, 100.0)
+        if hasattr(tm, 'keep_right_rule_percentage'):
+            tm.keep_right_rule_percentage(actor, 100.0)
 
         # Per-vehicle following distance matches global safe gap
-        tm.distance_to_leading_vehicle(actor, 3.0)
+        tm.distance_to_leading_vehicle(actor, 4.0)
 
-        # Inherit global speed (no individual override)
-        tm.vehicle_percentage_speed_difference(actor, 0.0)
+        # Inherit global speed (20% under limit)
+        tm.vehicle_percentage_speed_difference(actor, 20.0)
     except Exception as e:
         logger.warning(f"TM rules failed for actor {actor.id}: {e}")
 

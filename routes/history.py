@@ -108,16 +108,18 @@ def connect():
         # Critical: TM sync mode must exactly match server sync mode, 
         # otherwise vehicles skip physics ticks and blow through red lights.
         settings = world.get_settings()
-        tm.set_synchronous_mode(settings.synchronous_mode)
+        settings.synchronous_mode = True
+        settings.fixed_delta_seconds = 0.05  # Forces simulation to run at a steady 20 FPS
+        world.apply_settings(settings)
+        tm.set_synchronous_mode(True)
 
-        # Global speed: 10 % under limit → cautious, realistic pacing
-        tm.global_percentage_speed_difference(10.0)
+        # Slow them down slightly so they have time to react at junctions
+        tm.global_percentage_speed_difference(20.0)
 
-        # 3 m following gap → safe stopping distance
-        tm.set_global_distance_to_leading_vehicle(3.0)
+        # Increase gap to 3.5 or 4.0 meters
+        tm.set_global_distance_to_leading_vehicle(4.0)
 
         # Global fallbacks: 100% obey lights, signs, and vehicles
-        tm.global_percentage_speed_difference(10.0)
         # Note: TrafficManager doesn't have a global set_ignore_lights_percentage
         # so this must be handled entirely on the per-vehicle basis when spawned.
 

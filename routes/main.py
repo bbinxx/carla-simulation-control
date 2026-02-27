@@ -110,30 +110,31 @@ def screenshot():
 
         def on_image(img):
             if image_event.is_set():
-                return   # ignore extra frames
-            arr = np.frombuffer(img.raw_data, dtype=np.uint8)
-            arr = arr.reshape((img.height, img.width, 4))
-            # CARLA raw = BGRA; drop alpha → BGR, then flip to RGB for correct web PNG
-            rgb = arr[:, :, 2::-1]
-            captured["img"] = rgb
-            captured["w"]   = img.width
-            captured["h"]   = img.height
-            image_event.set()
+                return
+            try:
+                arr = np.frombuffer(img.raw_data, dtype=np.uint8)
+                arr = np.reshape(arr, (img.height, img.width, 4))
+                bgr = arr[:, :, :3]
+                captured["img"] = np.copy(bgr)
+                captured["w"]   = img.width
+                captured["h"]   = img.height
+            except Exception as e:
+                logger.error(f"Image capture error: {e}")
+            finally:
+                image_event.set()
 
         camera.listen(on_image)
         got = image_event.wait(timeout=10.0)
+        
         try:
             camera.stop()
-        except Exception:
-            pass
-        try:
             camera.destroy()
         except Exception:
             pass
         camera = None
 
         if not got or "img" not in captured:
-            return jsonify({"success": False, "error": "Timeout waiting for camera frame"})
+            return jsonify({"success": False, "error": "Timeout or error waiting for camera frame"})
 
         _, buf = cv2.imencode(".png", captured["img"],
                               [cv2.IMWRITE_PNG_COMPRESSION, 3])

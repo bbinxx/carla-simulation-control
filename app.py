@@ -64,7 +64,24 @@ def debug_bboxes_loop():
         time.sleep(SLEEP)
 
 
+def carla_tick_loop():
+    """Tick the CARLA world continuously for synchronous mode."""
+    while True:
+        try:
+            with state_lock:
+                connected = carla_state.get("connected")
+                client = carla_state.get("client")
+            
+            if connected and client:
+                world = client.get_world()
+                world.tick()
+        except Exception:
+            pass
+        time.sleep(0.005)
+
+
 threading.Thread(target=debug_bboxes_loop, daemon=True).start()
+threading.Thread(target=carla_tick_loop, daemon=True).start()
 
 # Register Blueprints
 from routes.main import blueprint as bp_main
@@ -88,4 +105,4 @@ app.register_blueprint(bp_spawner)
 app.register_blueprint(bp_destroy)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
