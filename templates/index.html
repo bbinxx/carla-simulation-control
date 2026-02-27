@@ -203,7 +203,7 @@
                 </div>
                 <div class="form-group">
                   <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
-                    <input type="checkbox" id="atSpectatorCb" style="width:auto" />
+                    <input type="checkbox" id="atSpectatorCb" checked style="width:auto" />
                     Spawn at Spectator
                   </label>
                 </div>
@@ -218,11 +218,15 @@
                 <div class="form-group"><label>Vehicle Count</label><input type="number" id="npcCount" value="10"
                     min="1" max="300" /></div>
                 <div class="form-group"><label>Radius from Spectator (0=random)</label><input type="number"
-                    id="npcRadius" value="0" min="0" /></div>
+                    id="npcRadius" value="50" min="0" /></div>
                 <button class="btn btn-success btn-full" onclick="spawnNPC()">+ Spawn Vehicles</button>
                 <div class="form-group" style="margin-top:14px"><label>Walker Count</label><input type="number"
                     id="walkerCount" value="5" min="1" /></div>
                 <button class="btn btn-cyan btn-full" onclick="spawnWalkers()">+ Spawn Walkers</button>
+                <hr />
+                <button class="btn btn-warning btn-full" onclick="fixAllVehicles()"
+                  title="Apply strict TM rules to all vehicles — stops circular driving">🔧 Fix All Vehicles (Stop
+                  Circling)</button>
               </div>
             </div>
 
@@ -266,6 +270,35 @@
                   <button class="btn btn-danger" onclick="destroyFilter('sensor.*')">✕ All Sensors</button>
                   <button class="btn btn-danger" onclick="destroyFilter('*')">✕ All Actors</button>
                 </div>
+              </div>
+            </div>
+
+            <!-- Emergency Vehicles -->
+            <div class="card">
+              <div class="card-header">🚨 Emergency Vehicles</div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label>Emergency Blueprint</label>
+                  <select id="emergencyBp">
+                    <option value="">-- Loading… --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
+                    <input type="checkbox" id="emergencyAutopilot" checked style="width:auto" />
+                    Autopilot
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
+                    <input type="checkbox" id="emergencyAtSpectator" checked style="width:auto" />
+                    Nearest road to Spectator
+                  </label>
+                </div>
+                <button class="btn btn-danger btn-full" onclick="spawnEmergency()">🚨 Spawn Emergency Vehicle</button>
+                <hr />
+                <button class="btn btn-warning btn-full" onclick="fixAllVehicles()">🔧 Fix All Vehicles (Stop
+                  Circling)</button>
               </div>
             </div>
 

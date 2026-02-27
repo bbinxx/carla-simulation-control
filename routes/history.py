@@ -91,31 +91,49 @@ def save_location():
 
 @blueprint.route("/connect", methods=["POST"])
 def connect():
-    data = request.json
-    host = data.get("host", "localhost")
-    port = int(data.get("port", 2000))
+    data    = request.json
+    host    = data.get("host", "localhost")
+    port    = int(data.get("port", 2000))
     timeout = float(data.get("timeout", 10.0))
     try:
         client = carla.Client(host, port)
         client.set_timeout(timeout)
 
-        tm = client.get_trafficmanager()
+        # ── Traffic Manager: strict real-life settings ─────────────────────
+        tm = client.get_trafficmanager(8000)
         tm.set_synchronous_mode(False)
-        tm.global_percentage_speed_difference(0.0)
-        tm.set_global_distance_to_leading_vehicle(2.5)
+
+        # Global speed: 10 % under limit → cautious, realistic pacing
+        tm.global_percentage_speed_difference(10.0)
+
+        # 3 m following gap → safe stopping distance
+        tm.set_global_distance_to_leading_vehicle(3.0)
+
         tm_port = tm.get_port()
 
-        world = client.get_world()
+
+        world    = client.get_world()
         map_name = world.get_map().name
 
         with state_lock:
-            carla_state.update({"client": client, "world": world, "connected": True,
-                                 "host": host, "port": port, "map": map_name, "tm_port": tm_port})
-        current_app.logger.info(f"Connected to CARLA at {host}:{port}. Map: {map_name} TM Port: {tm_port}")
-        return jsonify({"success": True, "map": map_name, "host": host, "port": port, "tm_port": tm_port})
+            carla_state.update({
+                "client":   client,
+                "world":    world,
+                "connected":True,
+                "host":     host,
+                "port":     port,
+                "map":      map_name,
+                "tm":       tm,
+                "tm_port":  tm_port,
+            })
+        current_app.logger.info(
+            f"Connected to CARLA at {host}:{port}. Map: {map_name} TM Port: {tm_port}")
+        return jsonify({"success": True, "map": map_name, "host": host,
+                        "port": port, "tm_port": tm_port})
     except Exception as e:
         current_app.logger.error(f"Failed to connect: {e}")
         return jsonify({"success": False, "error": str(e)})
+
 
 
 @blueprint.route("/disconnect", methods=["POST"])

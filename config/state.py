@@ -7,6 +7,7 @@ carla_state = {
     "host": "",
     "port": 2000,
     "map": "",
+    "tm": None,
     "tm_port": 8000,
     "debug_bboxes": False,
 }

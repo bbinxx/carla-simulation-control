@@ -109,19 +109,27 @@ def screenshot():
         captured    = {}
 
         def on_image(img):
-            # Raw BGRA → RGB
+            if image_event.is_set():
+                return   # ignore extra frames
             arr = np.frombuffer(img.raw_data, dtype=np.uint8)
             arr = arr.reshape((img.height, img.width, 4))
-            bgr = arr[:, :, :3]           # drop alpha – already BGR order from CARLA
-            captured["img"] = bgr
+            # CARLA raw = BGRA; drop alpha → BGR, then flip to RGB for correct web PNG
+            rgb = arr[:, :, 2::-1]
+            captured["img"] = rgb
             captured["w"]   = img.width
             captured["h"]   = img.height
             image_event.set()
 
         camera.listen(on_image)
         got = image_event.wait(timeout=10.0)
-        camera.stop()
-        camera.destroy()
+        try:
+            camera.stop()
+        except Exception:
+            pass
+        try:
+            camera.destroy()
+        except Exception:
+            pass
         camera = None
 
         if not got or "img" not in captured:
@@ -201,10 +209,10 @@ def _ensure_stream_camera(client):
 
             def on_frame(img):
                 global _stream_frame
-                # CARLA gives BGRA raw_data — correct color order for cv2 (BGR)
                 arr = np.frombuffer(img.raw_data, dtype=np.uint8)
                 arr = arr.reshape((img.height, img.width, 4))
-                bgr = arr[:, :, :3]   # drop alpha, keep BGR — correct for imencode
+                # BGRA → BGR (cv2 imencode JPEG expects BGR, produces correct web colors)
+                bgr = arr[:, :, :3]
                 _, buf = cv2.imencode(".jpg", bgr,
                                       [cv2.IMWRITE_JPEG_QUALITY, 90])
                 with _stream_lock:

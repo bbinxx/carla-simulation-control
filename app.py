@@ -26,44 +26,43 @@ def init_db():
 init_db()
 
 def debug_bboxes_loop():
+    LIFE = 1.0      # seconds each debug primitive stays visible
+    SLEEP = 0.35    # loop interval — must be << LIFE to prevent gap-flicker
     while True:
         try:
             with state_lock:
                 connected = carla_state.get("connected")
-                enabled = carla_state.get("debug_bboxes", False)
-                client = carla_state.get("client")
-            
+                enabled   = carla_state.get("debug_bboxes", False)
+                client    = carla_state.get("client")
+
             if connected and enabled and client:
                 world = client.get_world()
                 debug = world.debug
-                
-                # Vehicles
+
                 for v in world.get_actors().filter("vehicle.*"):
                     t = v.get_transform()
                     b = v.bounding_box
                     if b.extent.x > 0:
                         box = carla.BoundingBox(t.location + b.location, b.extent)
-                        debug.draw_box(box, t.rotation, 0.05, carla.Color(255, 120, 0), 0.6)
-                        
-                        z_val = b.extent.z + 1.2
-                        loc = t.location + carla.Location(0, 0, z_val)
-                        debug.draw_string(loc, f"ID:{v.id}", False, carla.Color(255, 120, 0), 0.6, True)
-                
-                # Traffic Lights
+                        debug.draw_box(box, t.rotation, 0.05, carla.Color(255, 120, 0), LIFE)
+                        loc = t.location + carla.Location(0, 0, b.extent.z + 1.2)
+                        debug.draw_string(loc, f"ID:{v.id}", False, carla.Color(255, 200, 0), LIFE, True)
+
                 for tl in world.get_actors().filter("traffic.traffic_light*"):
                     t = tl.get_transform()
                     s = str(tl.get_state()).split('.')[-1]
-                    c = carla.Color(0,255,0) if s == "Green" else (carla.Color(255,0,0) if s == "Red" else carla.Color(255,255,0))
-                    
+                    c = carla.Color(0, 255, 0) if s == "Green" else (
+                        carla.Color(255, 0, 0) if s == "Red" else carla.Color(255, 200, 0))
                     loc = t.location + carla.Location(0, 0, 1.0)
-                    debug.draw_string(loc, f"TL:{tl.id} {s}", False, c, 0.6, True)
-                    
-                    # Draw subtle box for TL
-                    debug.draw_box(carla.BoundingBox(t.location, carla.Vector3D(0.5, 0.5, 2.0)), t.rotation, 0.05, c, 0.6)
-                    
-        except Exception:
-            pass
-        time.sleep(0.5)
+                    debug.draw_string(loc, f"TL:{tl.id} {s}", False, c, LIFE, True)
+                    debug.draw_box(
+                        carla.BoundingBox(t.location, carla.Vector3D(0.5, 0.5, 2.0)),
+                        t.rotation, 0.05, c, LIFE)
+
+        except Exception as e:
+            pass   # world may not be ready yet
+        time.sleep(SLEEP)
+
 
 threading.Thread(target=debug_bboxes_loop, daemon=True).start()
 
