@@ -1,0 +1,186 @@
+[2026-02-27 21:47:09,332] INFO [config.logger:<module>:41]: All blueprints registered successfully
+[2026-02-27 21:47:09,342] INFO [config.logger:init_locations_db:33]: Locations database initialized
+[2026-02-27 21:47:09,342] INFO [config.logger:init_databases:96]: Databases initialized
+[2026-02-27 21:47:09,343] INFO [config.logger:<module>:151]: Starting CARLA Control Server on 0.0.0.0:5000
+[2026-02-27 21:47:10,610] INFO [werkzeug:_log:97]: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.68.83.169:5000
+[2026-02-27 21:47:10,612] INFO [werkzeug:_log:97]: [33mPress CTRL+C to quit[0m
+[2026-02-27 21:47:13,198] INFO [config.logger:init_locations_db:33]: Locations database initialized
+[2026-02-27 21:47:13,198] INFO [config.logger:init_databases:96]: Databases initialized
+[2026-02-27 21:47:13,199] ERROR [config.logger:handle_exception:53]: Unhandled exception: NotFound - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-02-27 21:47:13,206] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:47:13] "[33mGET / HTTP/1.1[0m" 404 -
+[2026-02-27 21:47:25,651] INFO [config.logger:<module>:37]: All blueprints registered successfully
+[2026-02-27 21:47:25,652] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:47:25,653] INFO [config.logger:init_databases:92]: Databases initialized
+[2026-02-27 21:47:25,653] INFO [config.logger:<module>:146]: Starting CARLA Control Server on 0.0.0.0:5000
+[2026-02-27 21:47:26,931] INFO [werkzeug:_log:97]: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.68.83.169:5000
+[2026-02-27 21:47:26,931] INFO [werkzeug:_log:97]: [33mPress CTRL+C to quit[0m
+[2026-02-27 21:47:29,359] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:47:29,360] INFO [config.logger:init_databases:92]: Databases initialized
+[2026-02-27 21:47:29,360] ERROR [config.logger:handle_exception:49]: Unhandled exception: NotFound - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-02-27 21:47:29,364] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:47:29] "[33mGET / HTTP/1.1[0m" 404 -
+[2026-02-27 21:47:58,933] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:47:58,933] INFO [config.logger:init_databases:92]: Databases initialized
+[2026-02-27 21:47:58,934] ERROR [config.logger:handle_exception:49]: Unhandled exception: NotFound - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-02-27 21:47:58,934] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:47:58] "[33mGET / HTTP/1.1[0m" 404 -
+[2026-02-27 21:48:43,303] INFO [config.logger:<module>:40]: All blueprints registered successfully
+[2026-02-27 21:48:43,304] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:43,305] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:43,305] INFO [config.logger:<module>:178]: Starting CARLA Control Server on 0.0.0.0:5000
+[2026-02-27 21:48:44,573] INFO [werkzeug:_log:97]: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.68.83.169:5000
+[2026-02-27 21:48:44,573] INFO [werkzeug:_log:97]: [33mPress CTRL+C to quit[0m
+[2026-02-27 21:48:45,856] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:45,857] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:45,878] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:45] "GET / HTTP/1.1" 200 -
+[2026-02-27 21:48:45,913] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:45,913] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:45,914] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:45,914] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:45,915] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:45,915] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:45,915] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:45,916] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:46,039] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:46] "GET /static/js/realtime.js HTTP/1.1" 200 -
+[2026-02-27 21:48:46,048] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:46] "GET /static/css/style.css HTTP/1.1" 200 -
+[2026-02-27 21:48:46,059] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:46] "GET /static/js/main.js HTTP/1.1" 200 -
+[2026-02-27 21:48:46,061] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:46] "GET /static/js/controls.js HTTP/1.1" 200 -
+[2026-02-27 21:48:46,129] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:46,130] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:46,131] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:46,132] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:46,132] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:46,132] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:46,132] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:46,132] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:46,133] ERROR [config.logger:log_action:47]: [2026-02-27 21:48:46] GET_SPECTATOR_POS[FAILED] | Error: World not connected
+[2026-02-27 21:48:46,133] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:46,134] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:46] "GET /api/locations/list HTTP/1.1" 200 -
+[2026-02-27 21:48:46,147] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:46] "[35m[1mGET /api/spectator/position HTTP/1.1[0m" 503 -
+[2026-02-27 21:48:46,147] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:46,148] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:46] "GET /api/realtime/weather/live HTTP/1.1" 200 -
+[2026-02-27 21:48:46,152] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:46,153] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:47,136] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:47,136] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:47,149] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:48,150] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:49,152] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:50,154] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:51,155] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:52,156] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:52,156] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:52] "GET /api/realtime/status HTTP/1.1" 200 -
+[2026-02-27 21:48:52,157] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:52,157] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:52] "GET /api/realtime/actors/live HTTP/1.1" 200 -
+[2026-02-27 21:48:52,160] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:52,160] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:53,158] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:54,159] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:55,162] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:56,163] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:56,300] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:56,301] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:56,301] ERROR [config.logger:handle_exception:81]: Unhandled exception: NotFound - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-02-27 21:48:56,303] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:56] "[33mPOST /api/weather/preset HTTP/1.1[0m" 404 -
+[2026-02-27 21:48:57,026] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:57,026] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:48:57,026] ERROR [config.logger:handle_exception:81]: Unhandled exception: NotFound - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+Traceback (most recent call last):
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\flask\ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\.venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2026-02-27 21:48:57,027] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:48:57] "[33mPOST /api/weather/preset HTTP/1.1[0m" 404 -
+[2026-02-27 21:48:57,164] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:58,165] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:59,166] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:48:59,226] INFO [config.logger:init_locations_db:34]: Locations database initialized
+[2026-02-27 21:48:59,226] INFO [config.logger:init_databases:124]: Databases initialized
+[2026-02-27 21:49:00,167] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:49:00,168] INFO [config.logger:generate:120]: WEATHER_LIVE: Client disconnected
+[2026-02-27 21:49:00,168] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:49:00,169] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:49:00] "GET /api/realtime/status HTTP/1.1" 200 -
+[2026-02-27 21:49:00,169] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:49:00,169] ERROR [config.logger:log_action:47]: [2026-02-27 21:49:00] GET_SPECTATOR_POS[FAILED] | Error: World not connected
+[2026-02-27 21:49:00,177] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:49:00] "[35m[1mGET /api/spectator/position HTTP/1.1[0m" 503 -
+[2026-02-27 21:49:00,177] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:49:00,178] INFO [werkzeug:_log:97]: 127.0.0.1 - - [27/Feb/2026 21:49:00] "GET /api/realtime/status HTTP/1.1" 200 -
+[2026-02-27 21:49:00,178] WARNING [config.logger:get_world:45]: get_world: World is None
+[2026-02-27 21:49:00,180] INFO [config.logger:generate:167]: ACTORS_LIVE: Client disconnected

@@ -1,13 +1,17 @@
-from flask import Blueprint, request, jsonify, render_template, current_app
-import carla
-import sqlite3
-import random
-import time
-import base64
-import numpy as np
-import cv2
+from flask import Blueprint, request, jsonify
 
-from config.state import carla_state, state_lock, DB_PATH
-from utils.helpers import get_world, get_actors_info, get_spectator_transform, make_weather, TL_STATE_MAP, WEATHER_PRESETS
+from utils.helpers import get_world
 
 blueprint = Blueprint('blueprints_api', __name__)
+
+
+@blueprint.route("/blueprints")
+def blueprints_list():
+    try:
+        filt = request.args.get("filter", "*")
+        world = get_world()
+        bpl = world.get_blueprint_library()
+        bps = sorted([bp.id for bp in bpl.filter(filt)])
+        return jsonify({"success": True, "blueprints": bps})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})

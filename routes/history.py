@@ -13,6 +13,20 @@ from utils.helpers import get_world, get_actors_info, get_spectator_transform, m
 blueprint = Blueprint('history', __name__)
 
 
+def _weather_dict(w):
+    return {
+        "cloudiness": round(w.cloudiness, 2),
+        "precipitation": round(w.precipitation, 2),
+        "precipitation_deposits": round(w.precipitation_deposits, 2),
+        "wind_intensity": round(w.wind_intensity, 2),
+        "sun_azimuth_angle": round(w.sun_azimuth_angle, 2),
+        "sun_altitude_angle": round(w.sun_altitude_angle, 2),
+        "fog_density": round(w.fog_density, 2),
+        "fog_distance": round(w.fog_distance, 2),
+        "wetness": round(w.wetness, 2),
+    }
+
+
 @blueprint.route("/history", methods=["GET"])
 def get_history():
     try:
@@ -81,30 +95,27 @@ def connect():
     host = data.get("host", "localhost")
     port = int(data.get("port", 2000))
     timeout = float(data.get("timeout", 10.0))
-    with state_lock:
-        try:
-            client = carla.Client(host, port)
-            client.set_timeout(timeout)
-            
-            # Init Traffic manager so it respects lights and boundaries
-            tm = client.get_trafficmanager()
-            tm.set_synchronous_mode(False)
-            
-            # Global TM Settings: Drive at 100% of the speed limit, keep 2.5m distance
-            tm.global_percentage_speed_difference(0.0) 
-            tm.set_global_distance_to_leading_vehicle(2.5)
+    try:
+        client = carla.Client(host, port)
+        client.set_timeout(timeout)
 
-            tm_port = tm.get_port()
-            
-            world = client.get_world()
-            map_name = world.get_map().name
+        tm = client.get_trafficmanager()
+        tm.set_synchronous_mode(False)
+        tm.global_percentage_speed_difference(0.0)
+        tm.set_global_distance_to_leading_vehicle(2.5)
+        tm_port = tm.get_port()
+
+        world = client.get_world()
+        map_name = world.get_map().name
+
+        with state_lock:
             carla_state.update({"client": client, "world": world, "connected": True,
                                  "host": host, "port": port, "map": map_name, "tm_port": tm_port})
-            current_app.logger.info(f"Connected to CARLA at {host}:{port}. Map: {map_name} TM Port: {tm_port}")
-            return jsonify({"success": True, "map": map_name, "host": host, "port": port, "tm_port": tm_port})
-        except Exception as e:
-            current_app.logger.error(f"Failed to connect: {e}")
-            return jsonify({"success": False, "error": str(e)})
+        current_app.logger.info(f"Connected to CARLA at {host}:{port}. Map: {map_name} TM Port: {tm_port}")
+        return jsonify({"success": True, "map": map_name, "host": host, "port": port, "tm_port": tm_port})
+    except Exception as e:
+        current_app.logger.error(f"Failed to connect: {e}")
+        return jsonify({"success": False, "error": str(e)})
 
 
 @blueprint.route("/disconnect", methods=["POST"])
@@ -118,28 +129,37 @@ def disconnect():
 @blueprint.route("/status")
 def status():
     with state_lock:
-        if not carla_state["connected"]:
-            return jsonify({"connected": False})
-        try:
-            world = get_world()
-            actors = get_actors_info(world)
-            vehicles = [a for a in actors if a["type"].startswith("vehicle")]
-            walkers  = [a for a in actors if a["type"].startswith("walker")]
-            sensors  = [a for a in actors if a["type"].startswith("sensor")]
-            spec = get_spectator_transform(world)
-            return jsonify({
-                "connected": True,
-                "host": carla_state["host"],
-                "port": carla_state["port"],
-                "map": carla_state["map"],
-                "actor_count": len(actors),
-                "vehicle_count": len(vehicles),
-                "walker_count": len(walkers),
-                "sensor_count": len(sensors),
-                "actors": actors[:80],
-                "weather": get_weather_info(world),
-                "spectator": spec,
-            })
-        except Exception as e:
+        connected = carla_state["connected"]
+        client = carla_state.get("client")
+        host = carla_state.get("host")
+        port = carla_state.get("port")
+        map_name = carla_state.get("map")
+
+    if not connected or not client:
+        return jsonify({"connected": False})
+
+    try:
+        world = client.get_world()
+        actors = get_actors_info(world)
+        vehicles = [a for a in actors if a["type"].startswith("vehicle")]
+        walkers  = [a for a in actors if a["type"].startswith("walker")]
+        sensors  = [a for a in actors if a["type"].startswith("sensor")]
+        spec = get_spectator_transform(world)
+        return jsonify({
+            "connected": True,
+            "host": host,
+            "port": port,
+            "map": map_name,
+            "actor_count": len(actors),
+            "vehicle_count": len(vehicles),
+            "walker_count": len(walkers),
+            "sensor_count": len(sensors),
+            "actors": actors[:80],
+            "weather": _weather_dict(world.get_weather()),
+            "spectator": spec,
+        })
+    except Exception as e:
+        with state_lock:
             carla_state["connected"] = False
-            return jsonify({"connected": False, "error": str(e)})
+        return jsonify({"connected": False, "error": str(e)})
+
