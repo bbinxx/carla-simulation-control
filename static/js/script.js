@@ -1,3 +1,4 @@
+// d:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\static\js\script.js
 // ═══════════════════════════════════════════════════════════════
 //  CARLA CONTROL PANEL — script.js
 // ═══════════════════════════════════════════════════════════════

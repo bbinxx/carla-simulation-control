@@ -1,3 +1,4 @@
+# d:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\config\state.py
 import threading
 
 carla_state = {

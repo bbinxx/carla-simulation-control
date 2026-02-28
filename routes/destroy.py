@@ -1,3 +1,4 @@
+# d:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\routes\destroy.py
 from flask import Blueprint, request, jsonify
 import logging
 
