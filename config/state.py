@@ -11,6 +11,7 @@ carla_state = {
     "tm": None,
     "tm_port": 8000,
     "debug_bboxes": False,
+    "agents": {}
 }
 state_lock = threading.Lock()
 DB_PATH = "history.db"
