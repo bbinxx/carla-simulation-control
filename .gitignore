@@ -46,3 +46,4 @@ history.db
 *.swp
 *.swo
 .DS_Store
+PythonAPI
