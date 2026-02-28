@@ -5,511 +5,1778 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CARLA Control Panel</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
-    rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       CSS CUSTOM PROPERTIES
+    ═══════════════════════════════════════════════════════════ */
+    :root {
+      --fs-base: 14px;
+      --sb-width: 72px;
+      --tb-height: 48px;
+
+      --bg: #08090c;
+      --surface: #0f1217;
+      --panel: #131720;
+      --border: #1d2535;
+      --border-hi: #2a3550;
+
+      --c-accent: #00d4f5;
+      --c-green: #00e87a;
+      --c-red: #f03050;
+      --c-yellow: #f5c400;
+      --c-cyan: #00c4d4;
+      --c-muted: #3d4f6a;
+      --c-dim: #5a6e8a;
+      --c-text: #b8cce0;
+      --c-bright: #ddeeff;
+
+      --radius: 0px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════════════════ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: var(--fs-base);
+    }
+
+    body {
+      background: var(--bg);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1rem;
+      color: var(--c-text);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      line-height: 1.4;
+    }
+
+    /* scanlines */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9998;
+      background: repeating-linear-gradient(0deg,
+          transparent 0px, transparent 3px,
+          rgba(0, 180, 220, 0.012) 3px, rgba(0, 180, 220, 0.012) 4px);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       WAYBAR
+    ═══════════════════════════════════════════════════════════ */
+    #waybar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: var(--sb-width);
+      background: #050608;
+      border-right: 2px solid var(--border);
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6px 0 10px;
+      gap: 1px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    #waybar::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    #waybar::-webkit-scrollbar-thumb {
+      background: var(--border);
+    }
+
+    .waybar-btn {
+      width: calc(var(--sb-width) - 8px);
+      min-height: 52px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--c-muted);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.55rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: all 0.12s;
+      padding: 6px 2px;
+      user-select: none;
+    }
+
+    .waybar-btn:hover {
+      color: var(--c-accent);
+      border-color: rgba(0, 212, 245, 0.2);
+      background: rgba(0, 212, 245, 0.06);
+    }
+
+    .waybar-btn.active {
+      color: var(--c-accent);
+      border-color: rgba(0, 212, 245, 0.35);
+      background: rgba(0, 212, 245, 0.1);
+    }
+
+    .waybar-btn.status-ok {
+      color: var(--c-green);
+    }
+
+    .wb-icon {
+      font-size: 0.78rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0;
+      color: inherit;
+    }
+
+    .wb-label {
+      font-size: 0.5rem;
+      line-height: 1;
+      text-align: center;
+      max-width: 62px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .waybar-sep {
+      width: 50px;
+      height: 1px;
+      background: var(--border);
+      margin: 3px 0;
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TOP BAR
+    ═══════════════════════════════════════════════════════════ */
+    #topbar {
+      position: fixed;
+      top: 0;
+      left: var(--sb-width);
+      right: 0;
+      height: var(--tb-height);
+      background: #050608;
+      border-bottom: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 10px;
+      z-index: 400;
+      overflow: hidden;
+    }
+
+    .tb-stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .tb-stat .k {
+      color: var(--c-muted);
+    }
+
+    .tb-stat .v {
+      color: var(--c-accent);
+      min-width: 20px;
+    }
+
+    .tb-div {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .tb-spacer {
+      flex: 1;
+    }
+
+    .tb-brand {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--c-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    /* font size controls in topbar */
+    .font-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .font-controls .fc-lbl {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--c-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .font-controls .fc-val {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--c-accent);
+      min-width: 28px;
+      text-align: center;
+    }
+
+    .font-btn {
+      width: 22px;
+      height: 22px;
+      background: rgba(0, 212, 245, 0.06);
+      border: 1px solid var(--border-hi);
+      color: var(--c-accent);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+      line-height: 1;
+    }
+
+    .font-btn:hover {
+      background: rgba(0, 212, 245, 0.15);
+      border-color: var(--c-accent);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       CANVAS (main area)
+    ═══════════════════════════════════════════════════════════ */
+    #canvas {
+      position: fixed;
+      left: var(--sb-width);
+      top: var(--tb-height);
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(rgba(29, 37, 53, 0.35) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(29, 37, 53, 0.35) 1px, transparent 1px);
+      background-size: 36px 36px;
+    }
+
+    #disconnectedPlaceholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .dc-icon {
+      width: 64px;
+      height: 64px;
+      border: 2px solid var(--border-hi);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.2rem;
+      color: var(--c-muted);
+      opacity: 0.5;
+    }
+
+    .dc-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--c-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       WINDOWS
+    ═══════════════════════════════════════════════════════════ */
+    .win {
+      position: fixed;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      display: none;
+      flex-direction: column;
+      min-width: 280px;
+      min-height: 80px;
+      overflow: hidden;
+      /* contain all content */
+    }
+
+    .win.open {
+      display: flex;
+    }
+
+    .win.pinned {
+      box-shadow: 0 0 0 1px var(--c-accent), 0 8px 40px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Titlebar */
+    .win-titlebar {
+      background: #080a10;
+      border-bottom: 1px solid var(--border);
+      padding: 0 10px;
+      height: 34px;
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: grab;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .win-titlebar:active {
+      cursor: grabbing;
+    }
+
+    .win.pinned .win-titlebar {
+      cursor: default;
+      border-bottom-color: rgba(0, 212, 245, 0.3);
+    }
+
+    .win-title {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--c-accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .win-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .win-pin,
+    .win-close {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      transition: all 0.1s;
+      flex-shrink: 0;
+    }
+
+    .win-pin {
+      color: var(--c-muted);
+      font-size: 0.75rem;
+    }
+
+    .win-pin:hover {
+      color: var(--c-yellow);
+      border-color: var(--c-yellow);
+      background: rgba(245, 196, 0, 0.1);
+    }
+
+    .win-pin.active {
+      color: var(--c-yellow);
+      border-color: var(--c-yellow);
+      background: rgba(245, 196, 0, 0.15);
+    }
+
+    .win-close {
+      color: var(--c-red);
+      border-color: rgba(240, 48, 80, 0.3);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .win-close:hover {
+      background: var(--c-red);
+      color: #fff;
+      border-color: var(--c-red);
+    }
+
+    /* Body — scrollable, contained */
+    .win-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 12px;
+      min-height: 0;
+    }
+
+    .win-body::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .win-body::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    .win-body::-webkit-scrollbar-thumb {
+      background: var(--border-hi);
+    }
+
+    /* Resize handle */
+    .win-resize {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 14px;
+      height: 14px;
+      cursor: se-resize;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .win-resize::after {
+      content: '';
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 0 8px 8px;
+      border-color: transparent transparent var(--border-hi) transparent;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       FORM ELEMENTS
+    ═══════════════════════════════════════════════════════════ */
+    .field {
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      display: block;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      color: var(--c-dim);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .field input,
+    .field select,
+    .txt-input {
+      width: 100%;
+      background: #070910;
+      border: 1px solid var(--border);
+      color: var(--c-bright);
+      padding: 6px 8px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      outline: none;
+      transition: border-color 0.12s;
+      display: block;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .txt-input:focus {
+      border-color: rgba(0, 212, 245, 0.4);
+    }
+
+    .field select option {
+      background: var(--panel);
+    }
+
+    .field input[type="range"] {
+      padding: 0;
+      height: 4px;
+      cursor: pointer;
+      accent-color: var(--c-accent);
+    }
+
+    .field input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    .field input[type="number"]::-webkit-inner-spin-button {
+      opacity: 0.4;
+    }
+
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .row3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+
+    /* Color wrap */
+    .color-wrap {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .color-wrap input[type="color"] {
+      width: 34px;
+      height: 34px;
+      padding: 2px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .color-wrap .txt-input {
+      flex: 1;
+    }
+
+    /* Checkbox row */
+    .check-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .check-row label {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      cursor: pointer;
+      color: var(--c-text);
+      white-space: nowrap;
+    }
+
+    .check-row input[type="checkbox"] {
+      accent-color: var(--c-accent);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       BUTTONS
+    ═══════════════════════════════════════════════════════════ */
+    .btn {
+      padding: 7px 12px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: 1px solid;
+      transition: all 0.1s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-full {
+      width: 100%;
+      display: flex;
+      margin-top: 6px;
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 0.75rem;
+    }
+
+    .btn-xs {
+      padding: 2px 6px;
+      font-size: 0.68rem;
+    }
+
+    .btn-primary {
+      background: rgba(0, 212, 245, 0.07);
+      border-color: rgba(0, 212, 245, 0.3);
+      color: var(--c-accent);
+    }
+
+    .btn-primary:hover {
+      background: rgba(0, 212, 245, 0.18);
+      border-color: var(--c-accent);
+    }
+
+    .btn-success {
+      background: rgba(0, 232, 122, 0.07);
+      border-color: rgba(0, 232, 122, 0.3);
+      color: var(--c-green);
+    }
+
+    .btn-success:hover {
+      background: rgba(0, 232, 122, 0.18);
+      border-color: var(--c-green);
+    }
+
+    .btn-danger {
+      background: rgba(240, 48, 80, 0.07);
+      border-color: rgba(240, 48, 80, 0.3);
+      color: var(--c-red);
+    }
+
+    .btn-danger:hover {
+      background: rgba(240, 48, 80, 0.18);
+      border-color: var(--c-red);
+    }
+
+    .btn-warn {
+      background: rgba(245, 196, 0, 0.07);
+      border-color: rgba(245, 196, 0, 0.3);
+      color: var(--c-yellow);
+    }
+
+    .btn-warn:hover {
+      background: rgba(245, 196, 0, 0.18);
+      border-color: var(--c-yellow);
+    }
+
+    .btn-cyan {
+      background: rgba(0, 196, 212, 0.07);
+      border-color: rgba(0, 196, 212, 0.3);
+      color: var(--c-cyan);
+    }
+
+    .btn-cyan:hover {
+      background: rgba(0, 196, 212, 0.18);
+      border-color: var(--c-cyan);
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .btn-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION HEADING
+    ═══════════════════════════════════════════════════════════ */
+    .sec-head {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--c-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin: 12px 0 7px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+    }
+
+    .sec-head:first-child {
+      margin-top: 0;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 10px 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       STATUS DOT
+    ═══════════════════════════════════════════════════════════ */
+    .sdot {
+      width: 8px;
+      height: 8px;
+      display: inline-block;
+      background: var(--c-red);
+      flex-shrink: 0;
+    }
+
+    .sdot.ok {
+      background: var(--c-green);
+      box-shadow: 0 0 6px var(--c-green);
+      animation: blink 2s infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.45
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       INFO ROWS
+    ═══════════════════════════════════════════════════════════ */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 8px;
+    }
+
+    .info-row .k {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--c-dim);
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .info-row .v {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--c-accent);
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       COORD DISPLAY
+    ═══════════════════════════════════════════════════════════ */
+    .coords {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      margin: 6px 0;
+    }
+
+    .coord-cell {
+      background: #070910;
+      border: 1px solid var(--border);
+      padding: 6px 4px;
+      text-align: center;
+    }
+
+    .coord-cell .ck {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.52rem;
+      color: var(--c-dim);
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .coord-cell .cv {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--c-accent);
+      word-break: break-all;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       BADGES
+    ═══════════════════════════════════════════════════════════ */
+    .badge {
+      padding: 1px 6px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-v {
+      background: rgba(0, 212, 245, 0.08);
+      border: 1px solid rgba(0, 212, 245, 0.25);
+      color: var(--c-accent);
+    }
+
+    .badge-w {
+      background: rgba(0, 232, 122, 0.08);
+      border: 1px solid rgba(0, 232, 122, 0.25);
+      color: var(--c-green);
+    }
+
+    .badge-s {
+      background: rgba(245, 196, 0, 0.08);
+      border: 1px solid rgba(245, 196, 0, 0.25);
+      color: var(--c-yellow);
+    }
+
+    .badge-t {
+      background: rgba(240, 48, 80, 0.08);
+      border: 1px solid rgba(240, 48, 80, 0.25);
+      color: var(--c-red);
+    }
+
+    .badge-o {
+      background: rgba(29, 37, 53, 0.5);
+      border: 1px solid var(--border);
+      color: var(--c-dim);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TABLE
+    ═══════════════════════════════════════════════════════════ */
+    .tbl-wrap {
+      overflow: auto;
+      width: 100%;
+    }
+
+    .actor-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+      table-layout: fixed;
+    }
+
+    .actor-table th {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.08em;
+      color: var(--c-dim);
+      text-transform: uppercase;
+      padding: 5px 6px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+      background: #070910;
+      position: sticky;
+      top: 0;
+    }
+
+    .actor-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid rgba(29, 37, 53, 0.5);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--c-text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .actor-table tr:hover td {
+      background: rgba(0, 212, 245, 0.03);
+    }
+
+    .tbl-empty {
+      text-align: center;
+      color: var(--c-muted);
+      padding: 20px;
+      font-size: 0.65rem;
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .tbl-err {
+      color: var(--c-red) !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TL COLORS
+    ═══════════════════════════════════════════════════════════ */
+    .tl-r {
+      color: var(--c-red);
+    }
+
+    .tl-g {
+      color: var(--c-green);
+    }
+
+    .tl-y {
+      color: var(--c-yellow);
+    }
+
+    .tl-o {
+      color: var(--c-dim);
+    }
+
+    .tl-btns {
+      display: flex;
+      gap: 3px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       WEATHER SLIDERS
+    ═══════════════════════════════════════════════════════════ */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .slider-row label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--c-dim);
+      text-transform: uppercase;
+      width: 96px;
+      flex-shrink: 0;
+    }
+
+    .slider-row input[type=range] {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .slider-row .sv {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--c-accent);
+      width: 32px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       WEATHER PRESET GRID
+    ═══════════════════════════════════════════════════════════ */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    .preset-btn {
+      background: #070910;
+      border: 1px solid var(--border);
+      color: var(--c-text);
+      padding: 8px 4px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.1s;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+
+    .preset-btn:hover {
+      border-color: rgba(0, 212, 245, 0.4);
+      background: rgba(0, 212, 245, 0.08);
+      color: var(--c-accent);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       LOG
+    ═══════════════════════════════════════════════════════════ */
+    .log-box {
+      background: #050608;
+      border: 1px solid var(--border);
+      height: 100%;
+      min-height: 120px;
+      overflow-y: auto;
+      padding: 8px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+    }
+
+    .log-box::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .log-box::-webkit-scrollbar-thumb {
+      background: var(--border-hi);
+    }
+
+    .log-entry {
+      padding: 1px 0;
+      line-height: 1.55;
+      word-break: break-all;
+    }
+
+    .log-info {
+      color: var(--c-dim);
+    }
+
+    .log-ok {
+      color: var(--c-green);
+    }
+
+    .log-err {
+      color: var(--c-red);
+    }
+
+    .log-warn {
+      color: var(--c-yellow);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════════════════════════ */
+    #toast {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      padding: 9px 16px;
+      background: var(--panel);
+      border: 1px solid var(--border-hi);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--c-text);
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.18s;
+      pointer-events: none;
+      max-width: 340px;
+    }
+
+    #toast.show {
+      opacity: 1;
+    }
+
+    #toast.ok {
+      border-color: rgba(0, 232, 122, 0.5);
+      color: var(--c-green);
+    }
+
+    #toast.err {
+      border-color: rgba(240, 48, 80, 0.5);
+      color: var(--c-red);
+    }
+
+    #toast.info {
+      border-color: rgba(0, 212, 245, 0.4);
+      color: var(--c-accent);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SCREENSHOT + LIVE
+    ═══════════════════════════════════════════════════════════ */
+    #screenshotImg {
+      width: 100%;
+      display: none;
+      border: 1px solid var(--border);
+      margin-top: 8px;
+      cursor: pointer;
+      max-height: 300px;
+      object-fit: contain;
+    }
+
+    #liveStream {
+      width: 100%;
+      display: none;
+      border: 1px solid var(--border);
+      max-height: 300px;
+      object-fit: contain;
+    }
+
+    #liveStreamStatus {
+      text-align: center;
+      padding: 24px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--c-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    #ssStatus {
+      color: var(--c-dim);
+      font-size: 0.65rem;
+      font-family: 'Share Tech Mono', monospace;
+      margin-top: 6px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       FILTER ROW (inline search + button)
+    ═══════════════════════════════════════════════════════════ */
+    .filter-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      align-items: stretch;
+    }
+
+    .filter-row .txt-input {
+      flex: 1;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TITLEBAR EXTRA CONTROLS (inline with title)
+    ═══════════════════════════════════════════════════════════ */
+    .tb-extra {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      margin-right: 8px;
+    }
+
+    .tb-extra input[type="number"] {
+      width: 58px;
+      background: #070910;
+      border: 1px solid var(--border);
+      color: var(--c-bright);
+      padding: 3px 6px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      outline: none;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SAVE-LOCATION ROW
+    ═══════════════════════════════════════════════════════════ */
+    .save-loc-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      align-items: stretch;
+    }
+
+    .save-loc-row .txt-input {
+      flex: 1;
+      font-size: 0.85rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       RESPONSIVE — clamp window width to viewport
+    ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      :root {
+        --sb-width: 56px;
+        --tb-height: 44px;
+      }
+
+      .wb-label {
+        display: none;
+      }
+
+      .waybar-btn {
+        min-height: 44px;
+      }
+
+      .wb-icon {
+        font-size: 0.7rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      :root {
+        --fs-base: 12px;
+      }
+
+      .preset-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .row3 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-  <header>
-    <div class="logo">
-      <div class="logo-icon">🚗</div>
-      CARLA Control Panel
+  <!-- ═══════════════════════════════════
+     WAYBAR
+════════════════════════════════════ -->
+  <aside id="waybar">
+    <div class="waybar-btn" id="wb-status" onclick="toggleWin('win-connect')">
+      <div class="wb-icon"><span id="statusDot" class="sdot"></span></div>
+      <div class="wb-label">CONN</div>
     </div>
-    <div class="header-right">
-      <button class="btn btn-pink btn-sm" id="screenshotBtn" onclick="takeScreenshot()" style="display:none">📷
-        Screenshot</button>
-      <div id="statusBadge" class="status-badge disconnected">
-        <div class="status-dot"></div>
-        <span id="statusText">Disconnected</span>
-      </div>
+
+    <div class="waybar-sep"></div>
+
+    <div class="waybar-btn" onclick="toggleWin('win-spectator')">
+      <div class="wb-icon">CAM</div>
+      <div class="wb-label">SPECTATOR</div>
     </div>
-  </header>
+    <div class="waybar-btn" onclick="toggleWin('win-map')">
+      <div class="wb-icon">MAP</div>
+      <div class="wb-label">MAP</div>
+    </div>
 
-  <div class="container">
+    <div class="waybar-sep"></div>
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <div class="waybar-btn" onclick="toggleWin('win-spawn')">
+      <div class="wb-icon">VEH</div>
+      <div class="wb-label">SPAWN</div>
+    </div>
+    <div class="waybar-btn" onclick="toggleWin('win-npc')">
+      <div class="wb-icon">NPC</div>
+      <div class="wb-label">NPC</div>
+    </div>
+    <div class="waybar-btn" onclick="toggleWin('win-emergency')">
+      <div class="wb-icon">EMG</div>
+      <div class="wb-label">EMERG</div>
+    </div>
+    <div class="waybar-btn" onclick="toggleWin('win-weather')">
+      <div class="wb-icon">WX</div>
+      <div class="wb-label">WEATHER</div>
+    </div>
+    <div class="waybar-btn" onclick="toggleWin('win-traffic')">
+      <div class="wb-icon">TL</div>
+      <div class="wb-label">TRAFFIC</div>
+    </div>
 
-      <!-- Connection -->
-      <div class="card">
-        <div class="card-header">🔌 Connection</div>
-        <div class="card-body">
-          <div class="form-group">
-            <label>Host Address</label>
-            <input type="text" id="hostInput" value="localhost" placeholder="IP or hostname" list="hostHistory" />
-            <datalist id="hostHistory"></datalist>
-          </div>
-          <div class="form-row">
-            <div><label>Port</label><input type="number" id="portInput" value="2000" /></div>
-            <div><label>Timeout (s)</label><input type="number" id="timeoutInput" value="10" /></div>
-          </div>
-          <button class="btn btn-primary btn-full" id="connectBtn" onclick="connect()">⚡ Connect</button>
-          <button class="btn btn-danger btn-full" id="disconnectBtn" style="margin-top:7px;display:none"
-            onclick="disconnect()">✕ Disconnect</button>
-        </div>
-      </div>
+    <div class="waybar-sep"></div>
 
-      <!-- Server Info -->
-      <div class="card" id="serverInfoCard" style="display:none">
-        <div class="card-header">📡 Server Info</div>
-        <div class="card-body">
-          <div class="info-row"><span class="key">Host</span><span class="val" id="infoHost">—</span></div>
-          <div class="info-row"><span class="key">Port</span><span class="val" id="infoPort">—</span></div>
-          <div class="info-row"><span class="key">Map</span><span class="val" id="infoMap">—</span></div>
-          <div class="info-row"><span class="key">Actors</span><span class="val" id="infoActors">—</span></div>
-          <hr style="margin: 12px 0;" />
-          <button class="btn btn-warning btn-full btn-sm" onclick="toggleDebugBboxes()" id="debugBoxesBtn">🔳 Toggle
-            Debug BBoxes</button>
-        </div>
-      </div>
+    <div class="waybar-btn" onclick="toggleWin('win-actors')">
+      <div class="wb-icon">ACT</div>
+      <div class="wb-label">ACTORS</div>
+    </div>
+    <div class="waybar-btn" onclick="toggleWin('win-env')">
+      <div class="wb-icon">ENV</div>
+      <div class="wb-label">OBJECTS</div>
+    </div>
+    <div class="waybar-btn" onclick="toggleWin('win-screenshot')">
+      <div class="wb-icon">SS</div>
+      <div class="wb-label">CAPTURE</div>
+    </div>
+    <div class="waybar-btn" onclick="toggleWin('win-live')">
+      <div class="wb-icon">LIV</div>
+      <div class="wb-label">STREAM</div>
+    </div>
 
-      <!-- Spectator Live -->
-      <div class="card" id="spectatorLiveCard" style="display:none">
-        <div class="card-header">
-          📷 Spectator
-          <button class="btn btn-sm btn-cyan" onclick="fetchSpectator()">↻</button>
-        </div>
-        <div class="card-body">
-          <div class="section-title">Position</div>
-          <div class="coord-display">
-            <div class="coord-cell">
-              <div class="coord-key">X</div>
-              <div class="coord-val" id="sX">—</div>
-            </div>
-            <div class="coord-cell">
-              <div class="coord-key">Y</div>
-              <div class="coord-val" id="sY">—</div>
-            </div>
-            <div class="coord-cell">
-              <div class="coord-key">Z</div>
-              <div class="coord-val" id="sZ">—</div>
-            </div>
-          </div>
-          <div class="section-title">Rotation</div>
-          <div class="coord-display">
-            <div class="coord-cell">
-              <div class="coord-key">Pitch</div>
-              <div class="coord-val" id="sPitch">—</div>
-            </div>
-            <div class="coord-cell">
-              <div class="coord-key">Yaw</div>
-              <div class="coord-val" id="sYaw">—</div>
-            </div>
-            <div class="coord-cell">
-              <div class="coord-key">Roll</div>
-              <div class="coord-val" id="sRoll">—</div>
-            </div>
-          </div>
-          <hr />
-          <div class="section-title">Move To</div>
-          <div class="form-row3">
-            <div><label>X</label><input type="number" id="specX" value="0" /></div>
-            <div><label>Y</label><input type="number" id="specY" value="0" /></div>
-            <div><label>Z</label><input type="number" id="specZ" value="50" /></div>
-          </div>
-          <div class="form-row3" style="margin-bottom:10px">
-            <div><label>Pitch</label><input type="number" id="specPitch" value="-90" /></div>
-            <div><label>Yaw</label><input type="number" id="specYaw" value="0" /></div>
-            <div><label>Roll</label><input type="number" id="specRoll" value="0" /></div>
-          </div>
-          <button class="btn btn-primary btn-full" onclick="moveSpectator()">🎯 Move Camera</button>
+    <div class="waybar-sep"></div>
 
-          <hr style="margin: 14px 0;" />
-          <div class="section-title">Saved Locations</div>
-          <div class="form-row" style="gap:5px; margin-bottom: 8px;">
-            <input type="text" id="locName" placeholder="Name..." style="flex:1" />
-            <button class="btn btn-success btn-sm" onclick="saveSpectatorPosition()">💾 Save</button>
-          </div>
-          <div class="form-group">
-            <select id="savedLocations" onchange="loadSpectatorPosition(this.value)">
-              <option value="">-- Load Location --</option>
-            </select>
-          </div>
-        </div>
-      </div>
+    <div class="waybar-btn" onclick="toggleWin('win-log')">
+      <div class="wb-icon">LOG</div>
+      <div class="wb-label">LOG</div>
+    </div>
+  </aside>
 
-      <!-- Map -->
-      <div class="card" id="mapCard" style="display:none">
-        <div class="card-header">🗺 Map</div>
-        <div class="card-body">
-          <div class="form-group"><label>Select Map</label><select id="mapSelect"></select></div>
-          <button class="btn btn-cyan btn-full" onclick="loadMap()">🔄 Load Map</button>
-        </div>
-      </div>
+  <!-- ═══════════════════════════════════
+     TOP BAR
+════════════════════════════════════ -->
+  <div id="topbar">
+    <div class="tb-stat">
+      <span class="k">STATUS</span>
+      <span id="statusText" class="v" style="color:var(--c-red)">DISCONNECTED</span>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-stat"><span class="k">MAP</span><span id="infoMap" class="v">--</span></div>
+    <div class="tb-div"></div>
+    <div class="tb-stat"><span class="k">ACT</span><span id="statActors" class="v">0</span></div>
+    <div class="tb-stat"><span class="k">VEH</span><span id="statVehicles" class="v">0</span></div>
+    <div class="tb-stat"><span class="k">WLK</span><span id="statWalkers" class="v">0</span></div>
+    <div class="tb-stat"><span class="k">SNS</span><span id="statSensors" class="v">0</span></div>
+    <div class="tb-spacer"></div>
+    <div class="font-controls">
+      <span class="fc-lbl">FONT</span>
+      <button class="font-btn" onclick="changeFontSize(-1)" title="Decrease font size">-</button>
+      <span class="fc-val" id="fontSizeVal">14px</span>
+      <button class="font-btn" onclick="changeFontSize(1)" title="Increase font size">+</button>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-brand">CARLA CONTROL PANEL v2</div>
+  </div>
 
-    </aside>
-
-    <!-- MAIN -->
-    <main class="main">
-
-      <!-- Stats -->
-      <div class="stats-grid" id="statsRow" style="display:none">
-        <div class="stat-card">
-          <div class="stat-value" id="statActors">0</div>
-          <div class="stat-label">Actors</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="statVehicles">0</div>
-          <div class="stat-label">Vehicles</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="statWalkers">0</div>
-          <div class="stat-label">Walkers</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="statSensors">0</div>
-          <div class="stat-label">Sensors</div>
-        </div>
-      </div>
-
-      <!-- TABS -->
-      <div id="mainTabs" style="display:none">
-        <div class="tabs">
-          <button class="tab active" onclick="switchTab('spawn',this)">🚗 Spawn</button>
-          <button class="tab" onclick="switchTab('weather',this)">🌤 Weather</button>
-          <button class="tab" onclick="switchTab('traffic',this)">🚦 Traffic Lights</button>
-          <button class="tab" onclick="switchTab('actors',this)">📋 Actors</button>
-          <button class="tab" onclick="switchTab('screenshot',this)">📷 Screenshot</button>
-          <button class="tab" onclick="switchTab('environment',this)">🌲 Objects</button>
-          <button class="tab" onclick="switchTab('live',this)">📹 Live Stream</button>
-          <button class="tab" onclick="switchTab('log',this)">📟 Log</button>
-        </div>
-
-        <!-- ── SPAWN TAB ── -->
-        <div class="tab-content active" id="tab-spawn">
-          <div class="spawn-grid">
-
-            <!-- Spawn Vehicle -->
-            <div class="card">
-              <div class="card-header">🚘 Spawn Vehicle</div>
-              <div class="card-body">
-                <div class="form-group"><label>Blueprint</label><select id="vehicleBp"></select></div>
-                <div class="form-group">
-                  <label>Color (R,G,B)</label>
-                  <div class="color-wrap">
-                    <input type="color" id="colorPicker" value="#ff0000" oninput="syncColor(this)" />
-                    <input type="text" id="colorText" value="255,0,0" oninput="syncColorText(this)" />
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
-                    <input type="checkbox" id="autopilotCb" checked style="width:auto" />
-                    Autopilot
-                  </label>
-                </div>
-                <div class="form-group">
-                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
-                    <input type="checkbox" id="atSpectatorCb" checked style="width:auto" />
-                    Spawn at Spectator
-                  </label>
-                </div>
-                <button class="btn btn-primary btn-full" onclick="spawnVehicle()">+ Spawn Vehicle</button>
-              </div>
-            </div>
-
-            <!-- Spawn NPCs -->
-            <div class="card">
-              <div class="card-header">🚦 Spawn NPCs</div>
-              <div class="card-body">
-                <div class="form-group"><label>Vehicle Count</label><input type="number" id="npcCount" value="10"
-                    min="1" max="300" /></div>
-                <div class="form-group"><label>Radius from Spectator (0=random)</label><input type="number"
-                    id="npcRadius" value="50" min="0" /></div>
-                <button class="btn btn-success btn-full" onclick="spawnNPC()">+ Spawn Vehicles</button>
-                <div class="form-group" style="margin-top:14px"><label>Walker Count</label><input type="number"
-                    id="walkerCount" value="5" min="1" /></div>
-                <button class="btn btn-cyan btn-full" onclick="spawnWalkers()">+ Spawn Walkers</button>
-                <hr />
-                <button class="btn btn-warning btn-full" onclick="fixAllVehicles()"
-                  title="Apply strict TM rules to all vehicles — stops circular driving">🔧 Fix All Vehicles (Stop
-                  Circling)</button>
-              </div>
-            </div>
-
-            <!-- Spawn Any -->
-            <div class="card">
-              <div class="card-header">🎯 Spawn Any at Spectator</div>
-              <div class="card-body">
-                <div class="form-group"><label>Filter</label>
-                  <div style="display:flex;gap:7px">
-                    <input type="text" id="bpFilter" placeholder="vehicle.*, walker.*, sensor.*" />
-                    <button class="btn btn-sm btn-cyan" onclick="filterBps()">Go</button>
-                  </div>
-                </div>
-                <div class="form-group"><label>Blueprint</label><select id="anyBp"></select></div>
-                <div class="form-group"><label>Z Offset</label><input type="number" id="anyZOffset" value="1.0"
-                    step="0.5" /></div>
-                <div class="form-group">
-                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
-                    <input type="checkbox" id="anyAutopilot" checked style="width:auto" />
-                    Autopilot (vehicles)
-                  </label>
-                </div>
-                <button class="btn btn-pink btn-full" onclick="spawnAny()">⚡ Spawn at Spectator</button>
-              </div>
-            </div>
-
-            <!-- Spawn Camera -->
-            <div class="card">
-              <div class="card-header">📷 Spawn Camera at Spectator</div>
-              <div class="card-body">
-                <div class="form-row">
-                  <div><label>Width</label><input type="number" id="camW" value="1280" /></div>
-                  <div><label>Height</label><input type="number" id="camH" value="720" /></div>
-                </div>
-                <div class="form-group"><label>FOV</label><input type="number" id="camFov" value="90" /></div>
-                <button class="btn btn-warning btn-full" onclick="spawnCamera()">📷 Spawn Camera</button>
-                <hr />
-                <div class="btn-grid">
-                  <button class="btn btn-danger" onclick="destroyFilter('vehicle.*')">✕ All Vehicles</button>
-                  <button class="btn btn-danger" onclick="destroyFilter('walker.*')">✕ All Walkers</button>
-                  <button class="btn btn-danger" onclick="destroyFilter('sensor.*')">✕ All Sensors</button>
-                  <button class="btn btn-danger" onclick="destroyFilter('*')">✕ All Actors</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Emergency Vehicles -->
-            <div class="card">
-              <div class="card-header">🚨 Emergency Vehicles</div>
-              <div class="card-body">
-                <div class="form-group">
-                  <label>Emergency Blueprint</label>
-                  <select id="emergencyBp">
-                    <option value="">-- Loading… --</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
-                    <input type="checkbox" id="emergencyAutopilot" checked style="width:auto" />
-                    Autopilot
-                  </label>
-                </div>
-                <div class="form-group">
-                  <label style="display:flex;gap:7px;align-items:center;text-transform:none;letter-spacing:0">
-                    <input type="checkbox" id="emergencyAtSpectator" checked style="width:auto" />
-                    Nearest road to Spectator
-                  </label>
-                </div>
-                <button class="btn btn-danger btn-full" onclick="spawnEmergency()">🚨 Spawn Emergency Vehicle</button>
-                <hr />
-                <button class="btn btn-warning btn-full" onclick="fixAllVehicles()">🔧 Fix All Vehicles (Stop
-                  Circling)</button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- ── WEATHER TAB ── -->
-        <div class="tab-content" id="tab-weather">
-          <div class="card">
-            <div class="card-header">🌤 Weather Control</div>
-            <div class="card-body">
-              <div class="section-title">Quick Presets</div>
-              <div class="preset-grid">
-                <button class="preset-btn" onclick="weatherPreset('clear')"><span>☀️</span>Clear</button>
-                <button class="preset-btn" onclick="weatherPreset('cloudy')"><span>☁️</span>Cloudy</button>
-                <button class="preset-btn" onclick="weatherPreset('rain')"><span>🌧️</span>Rain</button>
-                <button class="preset-btn" onclick="weatherPreset('storm')"><span>⛈️</span>Storm</button>
-                <button class="preset-btn" onclick="weatherPreset('night')"><span>🌙</span>Night</button>
-                <button class="preset-btn" onclick="weatherPreset('fog')"><span>🌫️</span>Fog</button>
-                <button class="preset-btn" onclick="weatherPreset('sunset')"><span>🌅</span>Sunset</button>
-              </div>
-              <hr />
-              <div class="section-title">Fine Control</div>
-              <div id="weatherSliders"></div>
-              <button class="btn btn-primary btn-full" onclick="applyWeather()">✓ Apply Weather</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── TRAFFIC LIGHTS TAB ── -->
-        <div class="tab-content" id="tab-traffic">
-          <div class="card" style="margin-bottom:14px">
-            <div class="card-header">
-              🚦 Traffic Lights Near Spectator
-              <div style="display:flex;gap:7px;align-items:center">
-                <label style="margin:0;text-transform:none;white-space:nowrap">Radius:</label>
-                <input type="number" id="tlRadius" value="150" style="width:70px" />
-                <button class="btn btn-sm btn-cyan" onclick="loadTrafficLights()">↻ Refresh</button>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="section-title">Global Controls</div>
-              <div class="btn-grid" style="margin-bottom:14px">
-                <button class="btn btn-success" onclick="freezeAll('green')">🟢 All Green</button>
-                <button class="btn btn-danger" onclick="freezeAll('red')">🔴 All Red</button>
-                <button class="btn btn-warning" onclick="freezeAll('yellow')">🟡 All Yellow</button>
-                <button class="btn btn-cyan" onclick="unfreezeAll()">▶ Resume All</button>
-              </div>
-              <div class="section-title">Nearby Lights</div>
-              <div class="actor-table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>State</th>
-                      <th>Dist(m)</th>
-                      <th>Set State</th>
-                      <th>Freeze</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tlTableBody">
-                    <tr>
-                      <td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Click Refresh</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── ACTORS TAB ── -->
-        <div class="tab-content" id="tab-actors">
-          <div class="card">
-            <div class="card-header">
-              📋 Actor List
-              <button class="btn btn-sm btn-cyan" onclick="refreshStatus()">↻ Refresh</button>
-            </div>
-            <div class="card-body" style="padding:0">
-              <div class="actor-table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Type</th>
-                      <th>X</th>
-                      <th>Y</th>
-                      <th>Z</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="actorTableBody">
-                    <tr>
-                      <td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No actors</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── SCREENSHOT TAB ── -->
-        <div class="tab-content" id="tab-screenshot">
-          <div class="card">
-            <div class="card-header">📷 Screenshot from Spectator View</div>
-            <div class="card-body">
-              <div class="form-row">
-                <div><label>Width</label><input type="number" id="ssW" value="1280" /></div>
-                <div><label>Height</label><input type="number" id="ssH" value="720" /></div>
-              </div>
-              <div class="form-row">
-                <div><label>FOV</label><input type="number" id="ssFov" value="90" /></div>
-                <div></div>
-              </div>
-              <button class="btn btn-primary" onclick="takeScreenshot()" id="ssBtn">📷 Capture</button>
-              <button class="btn btn-success" onclick="downloadScreenshot()" id="ssDownloadBtn"
-                style="display:none;margin-left:8px">⬇ Download</button>
-              <div id="ssStatus" style="color:var(--muted);font-size:.78rem;margin-top:8px"></div>
-              <img id="screenshotImg" alt="Screenshot" onclick="downloadScreenshot()" title="Click to download" />
-            </div>
-          </div>
-        </div>
-
-        <!-- ── ENVIRONMENT TAB ── -->
-        <div class="tab-content" id="tab-environment">
-          <div class="card">
-            <div class="card-header">🌲 Environment Objects Toggle</div>
-            <div class="card-body">
-              <div class="form-group"><label>Object Type</label>
-                <select id="envObjectSelect">
-                  <option value="Vegetation">Vegetation (Trees, etc.)</option>
-                  <option value="Buildings">Buildings</option>
-                  <option value="Car">Car</option>
-                  <option value="Truck">Truck</option>
-                  <option value="Bus">Bus</option>
-                  <option value="Motorcycle">Motorcycle</option>
-                  <option value="Bicycle">Bicycle</option>
-                  <option value="Pedestrians">Pedestrians</option>
-                  <option value="Fences">Fences</option>
-                  <option value="Poles">Poles</option>
-                  <option value="TrafficSigns">Traffic Signs</option>
-                  <option value="RoadLines">Road Lines</option>
-                  <option value="Roads">Roads</option>
-                  <option value="Sidewalks">Sidewalks</option>
-                  <option value="Walls">Walls</option>
-                  <option value="Sky">Sky</option>
-                  <option value="Ground">Ground</option>
-                  <option value="Bridge">Bridge</option>
-                  <option value="RailTrack">RailTrack</option>
-                  <option value="GuardRail">GuardRail</option>
-                  <option value="TrafficLight">TrafficLight</option>
-                  <option value="Static">Static</option>
-                  <option value="Dynamic">Dynamic</option>
-                  <option value="Water">Water</option>
-                  <option value="Terrain">Terrain</option>
-                  <option value="Any">Any</option>
-                  <option value="NONE">NONE</option>
-                </select>
-              </div>
-              <div class="btn-grid">
-                <button class="btn btn-danger" onclick="toggleEnvObject(false)">🚫 Hide</button>
-                <button class="btn btn-success" onclick="toggleEnvObject(true)">👁️ Show</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── LIVE STREAM TAB ── -->
-        <div class="tab-content" id="tab-live">
-          <div class="card">
-            <div class="card-header">📹 Live Camera Stream</div>
-            <div class="card-body">
-              <img id="liveStream" src=""
-                style="width:100%;border-radius:var(--radius-sm);display:none;border:1px solid var(--border);" />
-              <div id="liveStreamStatus" style="color:var(--muted);text-align:center;padding:20px;">Stream inactive.
-              </div>
-              <button class="btn btn-cyan btn-full" onclick="startStream()" id="streamBtn" style="margin-top:10px;">▶
-                Start Stream</button>
-              <button class="btn btn-danger btn-full" onclick="stopStream()" id="streamStopBtn"
-                style="margin-top:10px;display:none;">⏹ Stop Stream</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── LOG TAB ── -->
-        <div class="tab-content" id="tab-log">
-          <div class="card">
-            <div class="card-header">
-              📟 Activity Log
-              <button class="btn btn-sm btn-warning" onclick="clearLog()">Clear</button>
-            </div>
-            <div class="card-body">
-              <div class="log-box" id="logBox"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Disconnected placeholder -->
-      <div id="disconnectedPlaceholder">
-        <div style="font-size:3.5rem">🚗</div>
-        <div style="font-size:1rem;font-weight:600;color:var(--muted)">Connect to CARLA to begin</div>
-        <div style="font-size:.8rem;color:var(--muted)">Enter host and port in the sidebar</div>
-      </div>
-
-    </main>
+  <!-- ═══════════════════════════════════
+     CANVAS
+════════════════════════════════════ -->
+  <div id="canvas">
+    <div id="disconnectedPlaceholder">
+      <div class="dc-icon">CP</div>
+      <div class="dc-text">Click CONN in sidebar to connect</div>
+    </div>
   </div>
 
   <div id="toast"></div>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+     WINDOWS
+════════════════════════════════════════════════════════════════ -->
+
+  <!-- CONNECTION -->
+  <div class="win" id="win-connect" style="left:88px;top:60px;width:340px;">
+    <div class="win-titlebar">
+      <div class="win-title"><span class="sdot" id="connDot"></span> CONNECTION</div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-connect')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-connect')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="field">
+        <label>Host</label>
+        <input type="text" id="hostInput" value="localhost" list="hostHistory" />
+        <datalist id="hostHistory"></datalist>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Port</label><input type="number" id="portInput" value="2000" /></div>
+        <div class="field"><label>Timeout (s)</label><input type="number" id="timeoutInput" value="10" /></div>
+      </div>
+      <button class="btn btn-primary btn-full" id="connectBtn" onclick="connect()">CONNECT</button>
+      <button class="btn btn-danger btn-full" id="disconnectBtn" style="display:none;"
+        onclick="disconnect()">DISCONNECT</button>
+      <div class="sec-head">Server Info</div>
+      <div class="info-row"><span class="k">HOST</span><span class="v" id="infoHost">--</span></div>
+      <div class="info-row"><span class="k">PORT</span><span class="v" id="infoPort">--</span></div>
+      <div class="info-row"><span class="k">ACTORS</span><span class="v" id="infoActors">--</span></div>
+      <button class="btn btn-warn btn-full btn-sm" style="margin-top:10px;" onclick="toggleDebugBboxes()"
+        id="debugBoxesBtn">TOGGLE DEBUG BBOXES</button>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- SPECTATOR -->
+  <div class="win" id="win-spectator" style="left:88px;top:120px;width:380px;">
+    <div class="win-titlebar">
+      <div class="win-title">SPECTATOR CAM</div>
+      <div class="tb-extra">
+        <button class="btn btn-cyan btn-sm" onclick="fetchSpectator()">REFRESH</button>
+      </div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-spectator')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-spectator')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="sec-head">Position</div>
+      <div class="coords">
+        <div class="coord-cell">
+          <div class="ck">X</div>
+          <div class="cv" id="sX">--</div>
+        </div>
+        <div class="coord-cell">
+          <div class="ck">Y</div>
+          <div class="cv" id="sY">--</div>
+        </div>
+        <div class="coord-cell">
+          <div class="ck">Z</div>
+          <div class="cv" id="sZ">--</div>
+        </div>
+      </div>
+      <div class="sec-head">Rotation</div>
+      <div class="coords">
+        <div class="coord-cell">
+          <div class="ck">PITCH</div>
+          <div class="cv" id="sPitch">--</div>
+        </div>
+        <div class="coord-cell">
+          <div class="ck">YAW</div>
+          <div class="cv" id="sYaw">--</div>
+        </div>
+        <div class="coord-cell">
+          <div class="ck">ROLL</div>
+          <div class="cv" id="sRoll">--</div>
+        </div>
+      </div>
+      <div class="sec-head">Move To</div>
+      <div class="row3">
+        <div class="field"><label>X</label><input type="number" id="specX" value="0" /></div>
+        <div class="field"><label>Y</label><input type="number" id="specY" value="0" /></div>
+        <div class="field"><label>Z</label><input type="number" id="specZ" value="50" /></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Pitch</label><input type="number" id="specPitch" value="-90" /></div>
+        <div class="field"><label>Yaw</label><input type="number" id="specYaw" value="0" /></div>
+        <div class="field"><label>Roll</label><input type="number" id="specRoll" value="0" /></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="moveSpectator()">MOVE CAMERA</button>
+      <div class="sec-head">Saved Locations</div>
+      <div class="save-loc-row">
+        <input type="text" id="locName" placeholder="Location name..." class="txt-input" />
+        <button class="btn btn-success btn-sm" onclick="saveSpectatorPosition()">SAVE</button>
+      </div>
+      <div class="field">
+        <label>Load Location</label>
+        <select id="savedLocations" onchange="loadSpectatorPosition(this.value)">
+          <option value="">-- Select --</option>
+        </select>
+      </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- MAP -->
+  <div class="win" id="win-map" style="left:88px;top:200px;width:300px;">
+    <div class="win-titlebar">
+      <div class="win-title">MAP</div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-map')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-map')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="field"><label>Select Map</label><select id="mapSelect"></select></div>
+      <button class="btn btn-cyan btn-full" onclick="loadMap()">LOAD MAP</button>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- SPAWN VEHICLE -->
+  <div class="win" id="win-spawn" style="left:88px;top:90px;width:360px;">
+    <div class="win-titlebar">
+      <div class="win-title">SPAWN VEHICLE</div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-spawn')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-spawn')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="field"><label>Blueprint</label><select id="vehicleBp"></select></div>
+      <div class="field">
+        <label>Color (R,G,B)</label>
+        <div class="color-wrap">
+          <input type="color" id="colorPicker" value="#ff0000" oninput="syncColor(this)" />
+          <input type="text" id="colorText" value="255,0,0" oninput="syncColorText(this)" class="txt-input" />
+        </div>
+      </div>
+      <div class="check-row">
+        <label><input type="checkbox" id="autopilotCb" checked /> Autopilot</label>
+        <label><input type="checkbox" id="atSpectatorCb" checked /> At Spectator</label>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="spawnVehicle()">SPAWN VEHICLE</button>
+      <div class="sec-head">Spawn Any Blueprint</div>
+      <div class="filter-row">
+        <input type="text" id="bpFilter" placeholder="vehicle.*, walker.*, sensor.*" class="txt-input"
+          style="font-size:0.8rem;" />
+        <button class="btn btn-cyan btn-sm" onclick="filterBps()">FILTER</button>
+      </div>
+      <div class="field"><label>Blueprint</label><select id="anyBp"></select></div>
+      <div class="row2">
+        <div class="field"><label>Z Offset</label><input type="number" id="anyZOffset" value="1.0" step="0.5" /></div>
+        <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px;">
+          <label
+            style="display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--c-text);font-size:0.85rem;font-weight:600;">
+            <input type="checkbox" id="anyAutopilot" checked style="accent-color:var(--c-accent);" /> Autopilot
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-warn btn-full" onclick="spawnAny()">SPAWN ANY AT SPECTATOR</button>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- NPC -->
+  <div class="win" id="win-npc" style="left:460px;top:90px;width:320px;">
+    <div class="win-titlebar">
+      <div class="win-title">SPAWN NPCs</div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-npc')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-npc')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="sec-head">Vehicles</div>
+      <div class="row2">
+        <div class="field"><label>Count</label><input type="number" id="npcCount" value="10" min="1" max="300" /></div>
+        <div class="field"><label>Radius (0=random)</label><input type="number" id="npcRadius" value="50" min="0" />
+        </div>
+      </div>
+      <button class="btn btn-success btn-full" onclick="spawnNPC()">SPAWN NPC VEHICLES</button>
+      <div class="sec-head">Walkers</div>
+      <div class="field"><label>Count</label><input type="number" id="walkerCount" value="5" min="1" /></div>
+      <button class="btn btn-cyan btn-full" onclick="spawnWalkers()">SPAWN WALKERS</button>
+      <hr />
+      <button class="btn btn-warn btn-full" onclick="fixAllVehicles()">FIX ALL VEHICLES (STOP CIRCLING)</button>
+      <div class="sec-head">Spawn Camera</div>
+      <div class="row3">
+        <div class="field"><label>Width</label><input type="number" id="camW" value="1280" /></div>
+        <div class="field"><label>Height</label><input type="number" id="camH" value="720" /></div>
+        <div class="field"><label>FOV</label><input type="number" id="camFov" value="90" /></div>
+      </div>
+      <button class="btn btn-warn btn-full" onclick="spawnCamera()">SPAWN CAMERA</button>
+      <div class="sec-head">Destroy</div>
+      <div class="btn-grid">
+        <button class="btn btn-danger btn-sm" onclick="destroyFilter('vehicle.*')">ALL VEHICLES</button>
+        <button class="btn btn-danger btn-sm" onclick="destroyFilter('walker.*')">ALL WALKERS</button>
+        <button class="btn btn-danger btn-sm" onclick="destroyFilter('sensor.*')">ALL SENSORS</button>
+        <button class="btn btn-danger btn-sm" onclick="destroyFilter('*')">ALL ACTORS</button>
+      </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- EMERGENCY -->
+  <div class="win" id="win-emergency" style="left:800px;top:90px;width:320px;">
+    <div class="win-titlebar">
+      <div class="win-title">EMERGENCY VEHICLES</div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-emergency')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-emergency')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="field"><label>Blueprint</label><select id="emergencyBp">
+          <option value="">-- Loading --</option>
+        </select></div>
+      <div class="check-row">
+        <label><input type="checkbox" id="emergencyAutopilot" checked style="accent-color:var(--c-accent);" />
+          Autopilot</label>
+        <label><input type="checkbox" id="emergencyAtSpectator" checked style="accent-color:var(--c-accent);" /> Near
+          Spectator</label>
+      </div>
+      <button class="btn btn-danger btn-full" onclick="spawnEmergency()">SPAWN EMERGENCY VEHICLE</button>
+      <hr />
+      <button class="btn btn-warn btn-full" onclick="fixAllVehicles()">FIX ALL VEHICLES</button>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- WEATHER -->
+  <div class="win" id="win-weather" style="left:460px;top:220px;width:400px;">
+    <div class="win-titlebar">
+      <div class="win-title">WEATHER</div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-weather')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-weather')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="sec-head">Quick Presets</div>
+      <div class="preset-grid">
+        <button class="preset-btn" onclick="weatherPreset('clear')">CLEAR</button>
+        <button class="preset-btn" onclick="weatherPreset('cloudy')">CLOUDY</button>
+        <button class="preset-btn" onclick="weatherPreset('rain')">RAIN</button>
+        <button class="preset-btn" onclick="weatherPreset('storm')">STORM</button>
+        <button class="preset-btn" onclick="weatherPreset('night')">NIGHT</button>
+        <button class="preset-btn" onclick="weatherPreset('fog')">FOG</button>
+        <button class="preset-btn" onclick="weatherPreset('sunset')">SUNSET</button>
+      </div>
+      <div class="sec-head">Fine Control</div>
+      <div id="weatherSliders"></div>
+      <button class="btn btn-primary btn-full" onclick="applyWeather()">APPLY WEATHER</button>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- TRAFFIC LIGHTS -->
+  <div class="win" id="win-traffic" style="left:88px;top:320px;width:440px;">
+    <div class="win-titlebar">
+      <div class="win-title">TRAFFIC LIGHTS</div>
+      <div class="tb-extra">
+        <input type="number" id="tlRadius" value="150" title="Radius (m)" />
+        <button class="btn btn-cyan btn-sm" onclick="loadTrafficLights()">REFRESH</button>
+      </div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-traffic')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-traffic')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="sec-head">Global Controls</div>
+      <div class="btn-grid">
+        <button class="btn btn-success btn-sm" onclick="freezeAll('green')">ALL GREEN</button>
+        <button class="btn btn-danger btn-sm" onclick="freezeAll('red')">ALL RED</button>
+        <button class="btn btn-warn btn-sm" onclick="freezeAll('yellow')">ALL YELLOW</button>
+        <button class="btn btn-cyan btn-sm" onclick="unfreezeAll()">RESUME ALL</button>
+      </div>
+      <div class="sec-head">Nearby Lights</div>
+      <div class="tbl-wrap" style="max-height:200px;">
+        <table class="actor-table">
+          <thead>
+            <tr>
+              <th style="width:50px">ID</th>
+              <th style="width:70px">STATE</th>
+              <th style="width:55px">DIST</th>
+              <th>SET</th>
+              <th style="width:50px">FRZ</th>
+            </tr>
+          </thead>
+          <tbody id="tlTableBody">
+            <tr>
+              <td colspan="5" class="tbl-empty">Click REFRESH to load</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- ACTORS -->
+  <div class="win" id="win-actors" style="left:550px;top:130px;width:460px;">
+    <div class="win-titlebar">
+      <div class="win-title">ACTORS</div>
+      <div class="tb-extra">
+        <button class="btn btn-cyan btn-sm" onclick="refreshStatus()">REFRESH</button>
+      </div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-actors')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-actors')">X</div>
+      </div>
+    </div>
+    <div class="win-body" style="padding:0;">
+      <div class="tbl-wrap" style="max-height:400px;">
+        <table class="actor-table">
+          <thead>
+            <tr>
+              <th style="width:46px">ID</th>
+              <th>TYPE</th>
+              <th style="width:54px">X</th>
+              <th style="width:54px">Y</th>
+              <th style="width:54px">Z</th>
+              <th style="width:36px"></th>
+            </tr>
+          </thead>
+          <tbody id="actorTableBody">
+            <tr>
+              <td colspan="6" class="tbl-empty">No actors</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- ENV OBJECTS -->
+  <div class="win" id="win-env" style="left:800px;top:320px;width:320px;">
+    <div class="win-titlebar">
+      <div class="win-title">ENV OBJECTS</div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-env')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-env')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="field">
+        <label>Object Type</label>
+        <select id="envObjectSelect">
+          <option value="Vegetation">Vegetation (Trees)</option>
+          <option value="Buildings">Buildings</option>
+          <option value="Car">Car</option>
+          <option value="Truck">Truck</option>
+          <option value="Bus">Bus</option>
+          <option value="Motorcycle">Motorcycle</option>
+          <option value="Bicycle">Bicycle</option>
+          <option value="Pedestrians">Pedestrians</option>
+          <option value="Fences">Fences</option>
+          <option value="Poles">Poles</option>
+          <option value="TrafficSigns">Traffic Signs</option>
+          <option value="RoadLines">Road Lines</option>
+          <option value="Roads">Roads</option>
+          <option value="Sidewalks">Sidewalks</option>
+          <option value="Walls">Walls</option>
+          <option value="Sky">Sky</option>
+          <option value="Ground">Ground</option>
+          <option value="Bridge">Bridge</option>
+          <option value="RailTrack">Rail Track</option>
+          <option value="GuardRail">Guard Rail</option>
+          <option value="TrafficLight">Traffic Light</option>
+          <option value="Static">Static</option>
+          <option value="Dynamic">Dynamic</option>
+          <option value="Water">Water</option>
+          <option value="Terrain">Terrain</option>
+          <option value="Any">Any</option>
+          <option value="NONE">NONE</option>
+        </select>
+      </div>
+      <div class="btn-grid">
+        <button class="btn btn-danger" onclick="toggleEnvObject(false)">HIDE</button>
+        <button class="btn btn-success" onclick="toggleEnvObject(true)">SHOW</button>
+      </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- SCREENSHOT -->
+  <div class="win" id="win-screenshot" style="left:550px;top:90px;width:400px;">
+    <div class="win-titlebar">
+      <div class="win-title">SCREENSHOT</div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-screenshot')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-screenshot')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="row3">
+        <div class="field"><label>Width</label><input type="number" id="ssW" value="1280" /></div>
+        <div class="field"><label>Height</label><input type="number" id="ssH" value="720" /></div>
+        <div class="field"><label>FOV</label><input type="number" id="ssFov" value="90" /></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="takeScreenshot()" id="ssBtn">CAPTURE</button>
+        <button class="btn btn-success" onclick="downloadScreenshot()" id="ssDownloadBtn"
+          style="display:none;">DOWNLOAD</button>
+      </div>
+      <div id="ssStatus"></div>
+      <img id="screenshotImg" alt="Screenshot" onclick="downloadScreenshot()" title="Click to download" />
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- LIVE STREAM -->
+  <div class="win" id="win-live" style="left:550px;top:440px;width:460px;">
+    <div class="win-titlebar">
+      <div class="win-title">LIVE STREAM</div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-live')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-live')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <img id="liveStream" />
+      <div id="liveStreamStatus">STREAM INACTIVE</div>
+      <button class="btn btn-cyan btn-full" onclick="startStream()" id="streamBtn">START STREAM</button>
+      <button class="btn btn-danger btn-full" onclick="stopStream()" id="streamStopBtn"
+        style="display:none;margin-top:6px;">STOP STREAM</button>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- LOG -->
+  <div class="win" id="win-log" style="left:88px;top:450px;width:520px;height:260px;">
+    <div class="win-titlebar">
+      <div class="win-title">ACTIVITY LOG</div>
+      <div class="tb-extra">
+        <button class="btn btn-warn btn-sm" onclick="clearLog()">CLEAR</button>
+      </div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-log')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-log')">X</div>
+      </div>
+    </div>
+    <div class="win-body" style="padding:8px;">
+      <div class="log-box" id="logBox"></div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- JS -->
   <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 
