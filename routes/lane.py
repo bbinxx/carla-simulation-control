@@ -4,7 +4,7 @@ import carla
 import random
 import logging
 from utils.helpers import get_world
-from utils.behaviour import get_tm, apply_vehicle_behaviour
+from utils.behaviour import get_tm
 
 blueprint = Blueprint('lane', __name__)
 logger = logging.getLogger(__name__)
@@ -79,7 +79,6 @@ def spawn_in_lane():
         if d.get("autopilot", True):
             tm, tm_port = get_tm()
             actor.set_autopilot(True, tm_port)
-            apply_vehicle_behaviour(tm, actor, is_emergency=is_emergency)
             
         return jsonify({"success": True, "id": actor.id, "type": actor.type_id})
     except Exception as e:

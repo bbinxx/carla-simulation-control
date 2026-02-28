@@ -602,7 +602,7 @@ async function loadEmergencyBlueprints() {
 async function spawnEmergency() {
   const bp = document.getElementById('emergencyBp').value;
   const autopilot = document.getElementById('emergencyAutopilot').checked;
-  const atSpectator = document.getElementById('emergencyAtSpectator').checked;
+  const atSpectator = false;
   toast('Spawning ' + (bp || 'random emergency') + '...');
   const data = await api('/spawn/emergency', 'POST', { blueprint: bp, autopilot, at_spectator: atSpectator });
   if (data.success) {
@@ -654,7 +654,7 @@ async function spawnVehicle() {
     blueprint: bp,
     color: document.getElementById('colorText').value,
     autopilot: document.getElementById('autopilotCb').checked,
-    at_spectator: document.getElementById('atSpectatorCb').checked,
+    autopilot: document.getElementById('autopilotCb').checked,
   });
   if (data.success) {
     toast(`Spawned ${data.blueprint} (ID:${data.actor_id})`, 'ok');
@@ -666,7 +666,7 @@ async function spawnVehicle() {
 
 async function spawnNPC() {
   const count = parseInt(document.getElementById('npcCount').value);
-  const radius = parseFloat(document.getElementById('npcRadius').value);
+  const radius = 0.0;
   toast(`Spawning ${count} NPCs...`);
   const data = await api('/spawn/npc', 'POST', { count, radius });
   if (data.success) {

@@ -1488,7 +1488,6 @@
       </div>
       <div class="check-row">
         <label><input type="checkbox" id="autopilotCb" checked /> Autopilot</label>
-        <label><input type="checkbox" id="atSpectatorCb" checked /> At Spectator</label>
       </div>
       <button class="btn btn-primary btn-full" onclick="spawnVehicle()">SPAWN VEHICLE</button>
       <div class="sec-head">Spawn Any Blueprint</div>
@@ -1525,8 +1524,6 @@
       <div class="sec-head">Vehicles</div>
       <div class="row2">
         <div class="field"><label>Count</label><input type="number" id="npcCount" value="10" min="1" max="300" /></div>
-        <div class="field"><label>Radius (0=random)</label><input type="number" id="npcRadius" value="50" min="0" />
-        </div>
       </div>
       <button class="btn btn-success btn-full" onclick="spawnNPC()">SPAWN NPC VEHICLES</button>
       <div class="sec-head">Walkers</div>
@@ -1568,8 +1565,6 @@
       <div class="check-row">
         <label><input type="checkbox" id="emergencyAutopilot" checked style="accent-color:var(--c-accent);" />
           Autopilot</label>
-        <label><input type="checkbox" id="emergencyAtSpectator" checked style="accent-color:var(--c-accent);" /> Near
-          Spectator</label>
       </div>
       <button class="btn btn-danger btn-full" onclick="spawnEmergency()">SPAWN EMERGENCY VEHICLE</button>
       <hr />

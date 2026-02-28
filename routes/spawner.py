@@ -10,7 +10,7 @@ from utils.helpers import get_world
 blueprint = Blueprint('spawner', __name__)
 logger = logging.getLogger(__name__)
 
-from utils.behaviour import get_tm, apply_vehicle_behaviour, apply_behaviour_to_all
+from utils.behaviour import get_tm, apply_behaviour_to_all
 
 # Emergency vehicle keywords in CARLA blueprint IDs
 _EMERGENCY_KEYWORDS = ["police", "ambulance", "firetruck", "fire_truck", "fire"]
@@ -45,12 +45,7 @@ def spawn_vehicle():
         if not spawn_points:
             return jsonify({"success": False, "error": "No road spawn points on this map"})
 
-        if d.get("at_spectator", False):
-            # Nearest road spawn point to the spectator camera
-            spec_loc = world.get_spectator().get_transform().location
-            transform = min(spawn_points, key=lambda sp: spec_loc.distance(sp.location))
-        else:
-            transform = random.choice(spawn_points)
+        transform = random.choice(spawn_points)
 
         actor = world.try_spawn_actor(bp, transform)
         if not actor:
@@ -67,9 +62,6 @@ def spawn_vehicle():
             if d.get("autopilot", True):
                 tm, tm_port = get_tm()
                 actor.set_autopilot(True, tm_port)
-                # Check if it should be treated as emergency
-                is_emer = any(kw in actor.type_id.lower() for kw in _EMERGENCY_KEYWORDS)
-                apply_vehicle_behaviour(tm, actor, is_emergency=is_emer)
 
             logger.info(f"Spawned vehicle {bp_id} ID:{actor.id}")
             return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
@@ -93,12 +85,6 @@ def spawn_npc():
         vehicle_bps  = list(bpl.filter("vehicle.*"))
         spawn_points = world.get_map().get_spawn_points()
 
-        # ── Spawn near spectator if radius > 0 ────────────────────────────
-        if radius > 0:
-            spec_loc = world.get_spectator().get_transform().location
-            spawn_points = [sp for sp in spawn_points if spec_loc.distance(sp.location) <= radius]
-            if not spawn_points:
-                return jsonify({"success": False, "error": f"No road spawn points within {radius}m"})
 
         random.shuffle(spawn_points)
         tm, tm_port = get_tm()
@@ -112,9 +98,6 @@ def spawn_npc():
                 if actor:
                     actors_to_cleanup.append(actor)
                     actor.set_autopilot(True, tm_port)
-                    # Check if it happened to be an emergency model
-                    is_emer = any(kw in actor.type_id.lower() for kw in _EMERGENCY_KEYWORDS)
-                    apply_vehicle_behaviour(tm, actor, is_emergency=is_emer)
                     spawned += 1
                     # Successfully initialized, remove from cleanup list
                     actors_to_cleanup.remove(actor)
@@ -184,11 +167,7 @@ def spawn_emergency():
         if not spawn_points:
             return jsonify({"success": False, "error": "No road spawn points"})
 
-        if d.get("at_spectator", False):
-            spec_loc  = world.get_spectator().get_transform().location
-            transform = min(spawn_points, key=lambda sp: spec_loc.distance(sp.location))
-        else:
-            transform = random.choice(spawn_points)
+        transform = random.choice(spawn_points)
 
         actor = world.try_spawn_actor(bp, transform)
         if not actor:
@@ -204,8 +183,6 @@ def spawn_emergency():
             if d.get("autopilot", True):
                 tm, tm_port = get_tm()
                 actor.set_autopilot(True, tm_port)
-                # Force is_emergency=True for this route
-                apply_vehicle_behaviour(tm, actor, is_emergency=True)
 
             logger.info(f"Emergency vehicle spawned: {bp_id} ID:{actor.id}")
             return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
@@ -239,8 +216,7 @@ def spawn_any():
             spawn_points = world.get_map().get_spawn_points()
             if not spawn_points:
                 return jsonify({"success": False, "error": "No spawn points on map"})
-            spec_loc  = world.get_spectator().get_transform().location
-            transform = min(spawn_points, key=lambda sp: spec_loc.distance(sp.location))
+            transform = random.choice(spawn_points)
         else:
             # Non-vehicles (props, sensors) can spawn at spectator
             z_offset   = float(d.get("z_offset", 1.0))
@@ -255,9 +231,6 @@ def spawn_any():
             if d.get("autopilot", False) and is_vehicle:
                 tm, tm_port = get_tm()
                 actor.set_autopilot(True, tm_port)
-                # Check for emergency (tag or ID)
-                is_emer = any(kw in (bp_id.lower() + " " + bp.tags[0]) for kw in _EMERGENCY_KEYWORDS)
-                apply_vehicle_behaviour(tm, actor, is_emergency=is_emer)
 
             logger.info(f"Spawned any: {bp_id} ID:{actor.id}")
             return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
