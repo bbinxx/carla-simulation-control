@@ -9,9 +9,10 @@ from utils.helpers import get_world
 blueprint = Blueprint('spawner', __name__)
 logger = logging.getLogger(__name__)
 
+from utils.behaviour import get_tm, apply_vehicle_behaviour, apply_behaviour_to_all
+
 # Emergency vehicle keywords in CARLA blueprint IDs
 _EMERGENCY_KEYWORDS = ["police", "ambulance", "firetruck", "fire_truck", "fire"]
-
 
 def _parse_color(color_str):
     try:
@@ -21,55 +22,6 @@ def _parse_color(color_str):
     except Exception:
         pass
     return None
-
-
-def _get_tm():
-    """Return (tm_object, tm_port) from shared state."""
-    with state_lock:
-        tm      = carla_state.get("tm")
-        tm_port = carla_state.get("tm_port", 8000)
-    return tm, tm_port
-
-
-def _apply_tm_rules(tm, actor):
-    """
-    Apply strict per-vehicle Traffic Manager rules for realistic behaviour.
-    Vehicle must already have autopilot enabled before calling this.
-    """
-    if tm is None:
-        return
-    try:
-        # ── Strict rule obedience ─────────────────────────────────────────
-        # 100 % obey traffic lights, stop/yield signs, other vehicles, walkers
-        tm.ignore_lights_percentage(actor,   0.0)
-        tm.ignore_signs_percentage(actor,    0.0)
-        tm.ignore_vehicles_percentage(actor, 0.0)
-        tm.ignore_walkers_percentage(actor,  0.0)
-
-        # ── Lane discipline — PRIMARY FIX for circular driving ────────────
-        # Disable TM's automatic lane-change decisions at junctions.
-        # When enabled, TM forces lane switches that loop vehicles back on
-        # small road networks — the main reason vehicles drive in circles.
-        tm.auto_lane_change(actor, False)
-
-        # No random lane changes on straights either
-        tm.random_left_lanechange_percentage(actor,  0.0)
-        tm.random_right_lanechange_percentage(actor, 0.0)
-
-        # Force keep-right discipline — prevents wrong-way U-turns
-        if hasattr(tm, 'keep_right_rule_percentage'):
-            tm.keep_right_rule_percentage(actor, 100.0)
-
-        # Per-vehicle following distance matches global safe gap
-        tm.distance_to_leading_vehicle(actor, 4.0)
-
-        # Inherit global speed (20% under limit)
-        tm.vehicle_percentage_speed_difference(actor, 20.0)
-    except Exception as e:
-        logger.warning(f"TM rules failed for actor {actor.id}: {e}")
-
-
-
 
 @blueprint.route("/spawn/vehicle", methods=["POST"])
 def spawn_vehicle():
@@ -111,9 +63,9 @@ def spawn_vehicle():
             return jsonify({"success": False, "error": "All spawn points blocked"})
 
         if d.get("autopilot", True):
-            tm, tm_port = _get_tm()
+            tm, tm_port = get_tm()
             actor.set_autopilot(True, tm_port)
-            _apply_tm_rules(tm, actor)
+            apply_vehicle_behaviour(tm, actor)
 
         logger.info(f"Spawned vehicle {bp_id} ID:{actor.id}")
         return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
@@ -141,7 +93,7 @@ def spawn_npc():
                 return jsonify({"success": False, "error": f"No road spawn points within {radius}m"})
 
         random.shuffle(spawn_points)
-        tm, tm_port = _get_tm()
+        tm, tm_port = get_tm()
 
         spawned = 0
         for sp in spawn_points[:count]:
@@ -149,7 +101,7 @@ def spawn_npc():
             actor = world.try_spawn_actor(bp, sp)
             if actor:
                 actor.set_autopilot(True, tm_port)
-                _apply_tm_rules(tm, actor)
+                apply_vehicle_behaviour(tm, actor)
                 spawned += 1
 
         logger.info(f"NPC spawn: {spawned}/{count}")
@@ -230,9 +182,9 @@ def spawn_emergency():
             return jsonify({"success": False, "error": "All spawn points blocked"})
 
         if d.get("autopilot", True):
-            tm, tm_port = _get_tm()
+            tm, tm_port = get_tm()
             actor.set_autopilot(True, tm_port)
-            _apply_tm_rules(tm, actor)
+            apply_vehicle_behaviour(tm, actor)
 
         logger.info(f"Emergency vehicle spawned: {bp_id} ID:{actor.id}")
         return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
@@ -275,9 +227,9 @@ def spawn_any():
             return jsonify({"success": False, "error": "Spawn failed (collision?)"})
 
         if d.get("autopilot", False) and is_vehicle:
-            tm, tm_port = _get_tm()
+            tm, tm_port = get_tm()
             actor.set_autopilot(True, tm_port)
-            _apply_tm_rules(tm, actor)
+            apply_vehicle_behaviour(tm, actor)
 
 
         logger.info(f"Spawned any: {bp_id} ID:{actor.id}")
@@ -330,19 +282,10 @@ def tm_fix_all():
     Use this to fix vehicles that are already spawned and driving in circles.
     """
     try:
-        world        = get_world()
-        tm, tm_port  = _get_tm()
-        vehicles     = list(world.get_actors().filter("vehicle.*"))
-        fixed        = 0
-        for v in vehicles:
-            try:
-                v.set_autopilot(True, tm_port)
-                _apply_tm_rules(tm, v)
-                fixed += 1
-            except Exception as ve:
-                logger.warning(f"Could not fix vehicle {v.id}: {ve}")
-        logger.info(f"TM fix applied to {fixed}/{len(vehicles)} vehicles")
-        return jsonify({"success": True, "fixed": fixed, "total": len(vehicles)})
+        world = get_world()
+        fixed, total = apply_behaviour_to_all(world)
+        logger.info(f"TM fix applied to {fixed}/{total} vehicles")
+        return jsonify({"success": True, "fixed": fixed, "total": total})
     except Exception as e:
         logger.error(f"tm_fix_all error: {e}")
         return jsonify({"success": False, "error": str(e)})

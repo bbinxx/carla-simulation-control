@@ -531,6 +531,7 @@
 
     .field input[type="number"] {
       -moz-appearance: textfield;
+      appearance: textfield;
     }
 
     .field input[type="number"]::-webkit-inner-spin-button {
@@ -1103,9 +1104,10 @@
     #liveStream {
       width: 100%;
       display: none;
-      border: 1px solid var(--border);
-      max-height: 300px;
+      border: 1px solid var(--border-hi);
+      max-height: 520px;
       object-fit: contain;
+      background: #000;
     }
 
     #liveStreamStatus {

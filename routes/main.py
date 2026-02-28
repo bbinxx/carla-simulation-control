@@ -158,9 +158,21 @@ def _gen_frames():
     while True:
         with _stream_lock:
             frame = _stream_frame
-        if frame is not None:
-            yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
-        time.sleep(0.033)   # ~30 fps cap
+        
+        if frame is None:
+            # Try to recreate camera if connection is still active
+            try:
+                with state_lock:
+                    client = carla_state.get("client")
+                    connected = carla_state.get("connected", False)
+                if connected and client:
+                    _ensure_stream_camera(client)
+            except: pass
+            time.sleep(0.5) # Wait a bit before retry
+            continue
+
+        yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
+        time.sleep(0.04)   # ~25 fps target matching sensor_tick
 
 
 @blueprint.route("/video_feed")
@@ -194,33 +206,44 @@ def _ensure_stream_camera(client):
     global _stream_camera, _stream_frame
     with _stream_camera_lock:
         if _stream_camera is not None:
+            # Re-sync transform in case spectator moved
+            try:
+                world = client.get_world()
+                _stream_camera.set_transform(world.get_spectator().get_transform())
+            except: pass
             return
         try:
             world = client.get_world()
             bpl   = world.get_blueprint_library()
             bp    = bpl.find("sensor.camera.rgb")
-            # Max quality settings
-            bp.set_attribute("image_size_x",  "1280")
-            bp.set_attribute("image_size_y",  "720")
+            
+            # Optimized for real-time: slightly lower resolution and strict tick
+            bp.set_attribute("image_size_x",  "800")
+            bp.set_attribute("image_size_y",  "450")
             bp.set_attribute("fov",           "90")
-            bp.set_attribute("sensor_tick",   "0.033")  # ~30 fps
+            bp.set_attribute("sensor_tick",   "0.04")  # 25 FPS target
 
             transform = world.get_spectator().get_transform()
             cam = world.spawn_actor(bp, transform)
 
             def on_frame(img):
                 global _stream_frame
-                arr = np.frombuffer(img.raw_data, dtype=np.uint8)
-                arr = arr.reshape((img.height, img.width, 4))
-                # BGRA → BGR (cv2 imencode JPEG expects BGR, produces correct web colors)
-                bgr = arr[:, :, :3]
-                _, buf = cv2.imencode(".jpg", bgr,
-                                      [cv2.IMWRITE_JPEG_QUALITY, 90])
-                with _stream_lock:
-                    _stream_frame = buf.tobytes()
+                try:
+                    # Update camera to follow spectator in "realtime"
+                    cam.set_transform(world.get_spectator().get_transform())
+                    
+                    arr = np.frombuffer(img.raw_data, dtype=np.uint8)
+                    arr = arr.reshape((img.height, img.width, 4))
+                    bgr = arr[:, :, :3]
+                    # Quality 80 for better throughput
+                    _, buf = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                    with _stream_lock:
+                        _stream_frame = buf.tobytes()
+                except Exception as e:
+                    logger.error(f"Stream callback error: {e}")
 
             cam.listen(on_frame)
             _stream_camera = cam
-            logger.info("Stream camera spawned at spectator position")
+            logger.info("Stream camera spawned and following spectator")
         except Exception as e:
             logger.error(f"Stream camera spawn error: {e}")
