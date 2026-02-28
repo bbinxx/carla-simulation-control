@@ -8,6 +8,7 @@ let serverLocations = {};
 let pollInterval = null;
 let weatherValues = {};
 let screenshotB64 = null;
+let lanePollInterval = null;
 let zTop = 200;
 let fontSize = 14;   // px base
 
@@ -86,6 +87,7 @@ function restoreState() {
 
     if (s.open) openWin(id, true);
   });
+  updateWaybarFocus();
 }
 
 // ── Font Size ──────────────────────────────────────────────────
@@ -101,6 +103,21 @@ function changeFontSize(delta) {
   applyFontSize();
 }
 
+// ── Waybar Focus ────────────────────────────────────────────────
+function updateWaybarFocus() {
+  document.querySelectorAll('.win').forEach(win => {
+    const wbId = 'wb-' + win.id.replace('win-', '');
+    const btn = document.getElementById(wbId);
+    if (btn) {
+      if (win.classList.contains('open')) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    }
+  });
+}
+
 // ── Window Management ──────────────────────────────────────────
 function toggleWin(id) {
   const w = document.getElementById(id);
@@ -114,6 +131,12 @@ function openWin(id, skipSave) {
   w.classList.add('open');
   w.style.display = 'flex';
   bringToFront(w);
+  if (id === 'win-lane') {
+    fetchLaneInfo();
+    clearInterval(lanePollInterval);
+    lanePollInterval = setInterval(fetchLaneInfo, 2000);
+  }
+  updateWaybarFocus();
   if (!skipSave) saveState();
 }
 
@@ -122,6 +145,11 @@ function closeWin(id) {
   if (!w) return;
   w.classList.remove('open');
   w.style.display = 'none';
+  if (id === 'win-lane') {
+    clearInterval(lanePollInterval);
+    lanePollInterval = null;
+  }
+  updateWaybarFocus();
   saveState();
 }
 
@@ -880,6 +908,83 @@ function stopStream() {
   document.getElementById('streamStopBtn').style.display = 'none';
   toast('Stream stopped');
   addLog('Live stream stopped');
+}
+
+// ── Lane Info ──────────────────────────────────────────────────
+async function fetchLaneInfo() {
+  const res = await api('/lane/current', 'GET');
+  if (!res.success) {
+    document.getElementById('laneRoad').innerText = '--';
+    document.getElementById('laneId').innerText = '--';
+    document.getElementById('laneType').innerText = 'Road missing';
+    document.getElementById('laneVehicleList').innerHTML = `<div style="color:var(--c-red);font-size:0.8rem;text-align:center;">${res.error}</div>`;
+    return;
+  }
+
+  document.getElementById('laneRoad').innerText = res.road_id;
+  document.getElementById('laneId').innerText = res.lane_id;
+  document.getElementById('laneType').innerText = `${res.lane_type} (${res.lane_width}m)`;
+
+  const list = document.getElementById('laneVehicleList');
+  if (res.vehicles.length === 0) {
+    list.innerHTML = '<div style="color:var(--c-dim);font-size:0.8rem;text-align:center;">Lane empty</div>';
+  } else {
+    list.innerHTML = res.vehicles.map(v => `
+      <div class="actor-card" style="margin-bottom:6px; padding:6px 10px; font-size:0.85rem; background:rgba(255,255,255,0.03); border-radius:2px; border:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div style="display:grid;">
+            <span style="color:var(--c-cyan); font-weight:700; font-family:'Share Tech Mono';">#${v.id}</span>
+            <span style="color:var(--c-dim); font-size:0.7rem; text-transform:uppercase;">${v.type_id.split('.').pop().replace(/_/g, ' ')}</span>
+          </div>
+          <div style="text-align:right;">
+            <span style="color:var(--c-green); font-weight:600;">${v.speed} <small>km/h</small></span>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px; margin-top:6px;">
+          <button class="btn btn-primary btn-xs" style="padding:2px; font-size:0.65rem;" onclick="changeLane(${v.id}, 'left')">← LNE</button>
+          <button class="btn btn-primary btn-xs" style="padding:2px; font-size:0.65rem;" onclick="changeLane(${v.id}, 'right')">RGT →</button>
+          <button class="btn btn-danger btn-xs" style="padding:2px; font-size:0.65rem;" onclick="destroyActor(${v.id})">DESTROY</button>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+async function changeLane(actorId, direction) {
+  const res = await api('/lane/change_lane', 'POST', { id: actorId, direction: direction });
+  if (res.success) {
+    toast(`Commanded #${actorId} ${direction}`, 'ok');
+    setTimeout(fetchLaneInfo, 500);
+  } else {
+    toast(res.error, 'err');
+  }
+}
+
+async function spawnInLane(isEmergency = false) {
+  toast('Spawning in lane...', 'ok');
+  const res = await api('/lane/spawn', 'POST', {
+    blueprint: isEmergency ? '' : 'vehicle.tesla.model3',
+    emergency: isEmergency,
+    autopilot: true,
+    distance: 8.0
+  });
+  if (res.success) {
+    toast(`Spawned ${res.type} (#${res.id})`, 'ok');
+    fetchLaneInfo();
+  } else {
+    toast(res.error, 'err');
+  }
+}
+
+async function clearLaneVehicles() {
+  if (!confirm('Destroy ALL vehicles in this lane?')) return;
+  const res = await api('/lane/clear', 'POST');
+  if (res.success) {
+    toast(`Cleared ${res.cleared} vehicles`, 'ok');
+    fetchLaneInfo();
+  } else {
+    toast(res.error, 'err');
+  }
 }
 
 // ── Init ───────────────────────────────────────────────────────

@@ -63,13 +63,20 @@ def spawn_vehicle():
         if not actor:
             return jsonify({"success": False, "error": "All spawn points blocked"})
 
-        if d.get("autopilot", True):
-            tm, tm_port = get_tm()
-            actor.set_autopilot(True, tm_port)
-            apply_vehicle_behaviour(tm, actor)
+        try:
+            if d.get("autopilot", True):
+                tm, tm_port = get_tm()
+                actor.set_autopilot(True, tm_port)
+                # Check if it should be treated as emergency
+                is_emer = any(kw in actor.type_id.lower() for kw in _EMERGENCY_KEYWORDS)
+                apply_vehicle_behaviour(tm, actor, is_emergency=is_emer)
 
-        logger.info(f"Spawned vehicle {bp_id} ID:{actor.id}")
-        return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
+            logger.info(f"Spawned vehicle {bp_id} ID:{actor.id}")
+            return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
+        except Exception as e:
+            if actor:
+                actor.destroy()
+            raise e
     except Exception as e:
         logger.error(f"spawn_vehicle error: {e}")
         return jsonify({"success": False, "error": str(e)})
@@ -97,16 +104,27 @@ def spawn_npc():
         tm, tm_port = get_tm()
 
         spawned = 0
-        for sp in spawn_points[:count]:
-            bp    = random.choice(vehicle_bps)
-            actor = world.try_spawn_actor(bp, sp)
-            if actor:
-                actor.set_autopilot(True, tm_port)
-                apply_vehicle_behaviour(tm, actor)
-                spawned += 1
+        actors_to_cleanup = []
+        try:
+            for sp in spawn_points[:count]:
+                bp    = random.choice(vehicle_bps)
+                actor = world.try_spawn_actor(bp, sp)
+                if actor:
+                    actors_to_cleanup.append(actor)
+                    actor.set_autopilot(True, tm_port)
+                    # Check if it happened to be an emergency model
+                    is_emer = any(kw in actor.type_id.lower() for kw in _EMERGENCY_KEYWORDS)
+                    apply_vehicle_behaviour(tm, actor, is_emergency=is_emer)
+                    spawned += 1
+                    # Successfully initialized, remove from cleanup list
+                    actors_to_cleanup.remove(actor)
 
-        logger.info(f"NPC spawn: {spawned}/{count}")
-        return jsonify({"success": True, "spawned": spawned})
+            logger.info(f"NPC spawn: {spawned}/{count}")
+            return jsonify({"success": True, "spawned": spawned})
+        except Exception as e:
+            for a in actors_to_cleanup:
+                a.destroy()
+            raise e
     except Exception as e:
         logger.error(f"spawn_npc error: {e}")
         return jsonify({"success": False, "error": str(e)})
@@ -182,13 +200,19 @@ def spawn_emergency():
         if not actor:
             return jsonify({"success": False, "error": "All spawn points blocked"})
 
-        if d.get("autopilot", True):
-            tm, tm_port = get_tm()
-            actor.set_autopilot(True, tm_port)
-            apply_vehicle_behaviour(tm, actor)
+        try:
+            if d.get("autopilot", True):
+                tm, tm_port = get_tm()
+                actor.set_autopilot(True, tm_port)
+                # Force is_emergency=True for this route
+                apply_vehicle_behaviour(tm, actor, is_emergency=True)
 
-        logger.info(f"Emergency vehicle spawned: {bp_id} ID:{actor.id}")
-        return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
+            logger.info(f"Emergency vehicle spawned: {bp_id} ID:{actor.id}")
+            return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
+        except Exception as e:
+            if actor:
+                actor.destroy()
+            raise e
     except Exception as e:
         logger.error(f"spawn_emergency error: {e}")
         return jsonify({"success": False, "error": str(e)})
@@ -227,14 +251,20 @@ def spawn_any():
         if not actor:
             return jsonify({"success": False, "error": "Spawn failed (collision?)"})
 
-        if d.get("autopilot", False) and is_vehicle:
-            tm, tm_port = get_tm()
-            actor.set_autopilot(True, tm_port)
-            apply_vehicle_behaviour(tm, actor)
+        try:
+            if d.get("autopilot", False) and is_vehicle:
+                tm, tm_port = get_tm()
+                actor.set_autopilot(True, tm_port)
+                # Check for emergency (tag or ID)
+                is_emer = any(kw in (bp_id.lower() + " " + bp.tags[0]) for kw in _EMERGENCY_KEYWORDS)
+                apply_vehicle_behaviour(tm, actor, is_emergency=is_emer)
 
-
-        logger.info(f"Spawned any: {bp_id} ID:{actor.id}")
-        return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
+            logger.info(f"Spawned any: {bp_id} ID:{actor.id}")
+            return jsonify({"success": True, "actor_id": actor.id, "blueprint": bp_id})
+        except Exception as e:
+            if actor:
+                actor.destroy()
+            raise e
     except Exception as e:
         logger.error(f"spawn_any error: {e}")
         return jsonify({"success": False, "error": str(e)})

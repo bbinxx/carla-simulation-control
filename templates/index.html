@@ -914,6 +914,21 @@
       font-family: 'Share Tech Mono', monospace;
     }
 
+    /* actor list cards (for Lane Info) */
+    .actor-card {
+      background: rgba(29, 37, 53, 0.4);
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      border-radius: 2px;
+      transition: all 0.1s;
+    }
+
+    .actor-card:hover {
+      border-color: var(--c-accent);
+      background: rgba(0, 212, 245, 0.04);
+    }
+
     .tbl-err {
       color: var(--c-red) !important;
     }
@@ -1230,60 +1245,64 @@
 
     <div class="waybar-sep"></div>
 
-    <div class="waybar-btn" onclick="toggleWin('win-spectator')">
+    <div class="waybar-btn" id="wb-spectator" onclick="toggleWin('win-spectator')">
       <div class="wb-icon">CAM</div>
       <div class="wb-label">SPECTATOR</div>
     </div>
-    <div class="waybar-btn" onclick="toggleWin('win-map')">
+    <div class="waybar-btn" id="wb-map" onclick="toggleWin('win-map')">
       <div class="wb-icon">MAP</div>
       <div class="wb-label">MAP</div>
     </div>
 
     <div class="waybar-sep"></div>
 
-    <div class="waybar-btn" onclick="toggleWin('win-spawn')">
+    <div class="waybar-btn" id="wb-spawn" onclick="toggleWin('win-spawn')">
       <div class="wb-icon">VEH</div>
       <div class="wb-label">SPAWN</div>
     </div>
-    <div class="waybar-btn" onclick="toggleWin('win-npc')">
+    <div class="waybar-btn" id="wb-npc" onclick="toggleWin('win-npc')">
       <div class="wb-icon">NPC</div>
       <div class="wb-label">NPC</div>
     </div>
-    <div class="waybar-btn" onclick="toggleWin('win-emergency')">
+    <div class="waybar-btn" id="wb-emergency" onclick="toggleWin('win-emergency')">
       <div class="wb-icon">EMG</div>
       <div class="wb-label">EMERG</div>
     </div>
-    <div class="waybar-btn" onclick="toggleWin('win-weather')">
+    <div class="waybar-btn" id="wb-weather" onclick="toggleWin('win-weather')">
       <div class="wb-icon">WX</div>
       <div class="wb-label">WEATHER</div>
     </div>
-    <div class="waybar-btn" onclick="toggleWin('win-traffic')">
+    <div class="waybar-btn" id="wb-traffic" onclick="toggleWin('win-traffic')">
       <div class="wb-icon">TL</div>
       <div class="wb-label">TRAFFIC</div>
+    </div>
+    <div class="waybar-btn" id="wb-lane" onclick="toggleWin('win-lane')">
+      <div class="wb-icon">LNE</div>
+      <div class="wb-label">LANE</div>
     </div>
 
     <div class="waybar-sep"></div>
 
-    <div class="waybar-btn" onclick="toggleWin('win-actors')">
+    <div class="waybar-btn" id="wb-actors" onclick="toggleWin('win-actors')">
       <div class="wb-icon">ACT</div>
       <div class="wb-label">ACTORS</div>
     </div>
-    <div class="waybar-btn" onclick="toggleWin('win-env')">
+    <div class="waybar-btn" id="wb-env" onclick="toggleWin('win-env')">
       <div class="wb-icon">ENV</div>
       <div class="wb-label">OBJECTS</div>
     </div>
-    <div class="waybar-btn" onclick="toggleWin('win-screenshot')">
+    <div class="waybar-btn" id="wb-screenshot" onclick="toggleWin('win-screenshot')">
       <div class="wb-icon">SS</div>
       <div class="wb-label">CAPTURE</div>
     </div>
-    <div class="waybar-btn" onclick="toggleWin('win-live')">
+    <div class="waybar-btn" id="wb-live" onclick="toggleWin('win-live')">
       <div class="wb-icon">LIV</div>
       <div class="wb-label">STREAM</div>
     </div>
 
     <div class="waybar-sep"></div>
 
-    <div class="waybar-btn" onclick="toggleWin('win-log')">
+    <div class="waybar-btn" id="wb-log" onclick="toggleWin('win-log')">
       <div class="wb-icon">LOG</div>
       <div class="wb-label">LOG</div>
     </div>
@@ -1662,6 +1681,41 @@
           </tbody>
         </table>
       </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- LANE INFORMATION -->
+  <div class="win" id="win-lane" style="left:500px;top:60px;width:340px;">
+    <div class="win-titlebar">
+      <div class="win-title">LANE INFORMATION</div>
+      <div class="tb-extra">
+        <button class="btn btn-cyan btn-sm" onclick="fetchLaneInfo()">POLL</button>
+      </div>
+      <div class="win-controls">
+        <div class="win-pin" onclick="togglePin('win-lane')" title="Pin window">P</div>
+        <div class="win-close" onclick="closeWin('win-lane')">X</div>
+      </div>
+    </div>
+    <div class="win-body">
+      <div class="sec-head">Current Location</div>
+      <div class="info-row"><span class="k">ROAD ID</span><span class="v" id="laneRoad">--</span></div>
+      <div class="info-row"><span class="k">LANE ID</span><span class="v" id="laneId">--</span></div>
+      <div class="info-row"><span class="k">TYPE</span><span class="v" id="laneType">--</span></div>
+
+      <div class="sec-head">Vehicles in Lane</div>
+      <div id="laneVehicleList" class="actor-list"
+        style="max-height:150px; overflow-y:auto; background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:5px; margin-bottom:10px;">
+        <div style="color:var(--c-dim); font-size:0.8rem; text-align:center;">Click POLL to refresh</div>
+      </div>
+
+      <div class="sec-head">Lane Operations</div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+        <button class="btn btn-green btn-full btn-sm" onclick="spawnInLane(false)">SPAWN VEHICLE</button>
+        <button class="btn btn-warn btn-full btn-sm" onclick="spawnInLane(true)">SPAWN EMERGENCY</button>
+      </div>
+      <button class="btn btn-danger btn-full btn-sm" style="margin-top:8px;" onclick="clearLaneVehicles()">CLEAR ALL
+        VEHICLES IN LANE</button>
     </div>
     <div class="win-resize"></div>
   </div>

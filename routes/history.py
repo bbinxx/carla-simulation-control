@@ -10,6 +10,7 @@ import cv2
 
 from config.state import carla_state, state_lock, DB_PATH
 from utils.helpers import get_world, get_actors_info, get_spectator_transform, make_weather, TL_STATE_MAP, WEATHER_PRESETS
+from utils.behaviour import sync_global_tm
 
 blueprint = Blueprint('history', __name__)
 
@@ -112,13 +113,12 @@ def connect():
         settings.synchronous_mode = True
         settings.fixed_delta_seconds = 0.05  # Forces simulation to run at a steady 20 FPS
         world.apply_settings(settings)
-        tm.set_synchronous_mode(True)
-
+        
+        # Apply global settings (Sync mode + 5.0m gap)
+        sync_global_tm(world)
+        
         # Slow them down slightly so they have time to react at junctions
         tm.global_percentage_speed_difference(20.0)
-
-        # Increase gap to 3.5 or 4.0 meters
-        tm.set_global_distance_to_leading_vehicle(4.0)
 
         # Global fallbacks: 100% obey lights, signs, and vehicles
         # Note: TrafficManager doesn't have a global set_ignore_lights_percentage

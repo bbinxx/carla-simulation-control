@@ -135,6 +135,7 @@ from routes.environment import blueprint as bp_environment
 from routes.blueprints_api import blueprint as bp_blueprints
 from routes.spawner import blueprint as bp_spawner
 from routes.destroy import blueprint as bp_destroy
+from routes.lane import blueprint as bp_lane
 
 app.register_blueprint(bp_main)
 app.register_blueprint(bp_history)
@@ -145,6 +146,7 @@ app.register_blueprint(bp_environment)
 app.register_blueprint(bp_blueprints)
 app.register_blueprint(bp_spawner)
 app.register_blueprint(bp_destroy)
+app.register_blueprint(bp_lane)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
