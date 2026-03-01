@@ -9,6 +9,7 @@ let pollInterval = null;
 let weatherValues = {};
 let screenshotB64 = null;
 let lanePollInterval = null;
+let camPollInterval = null;
 let zTop = 200;
 let fontSize = 14;   // px base
 
@@ -136,6 +137,11 @@ function openWin(id, skipSave) {
     clearInterval(lanePollInterval);
     lanePollInterval = setInterval(fetchLaneInfo, 2000);
   }
+  if (id === 'win-cameras') {
+    refreshCameras();
+    clearInterval(camPollInterval);
+    camPollInterval = setInterval(refreshCameras, 1000);
+  }
   updateWaybarFocus();
   if (!skipSave) saveState();
 }
@@ -148,6 +154,11 @@ function closeWin(id) {
   if (id === 'win-lane') {
     clearInterval(lanePollInterval);
     lanePollInterval = null;
+  }
+  if (id === 'win-cameras') {
+    stopCamPreview();
+    clearInterval(camPollInterval);
+    camPollInterval = null;
   }
   updateWaybarFocus();
   saveState();
@@ -318,9 +329,11 @@ async function saveHostHistory(host, port) {
 
 function renderSavedLocations() {
   const sel = document.getElementById('savedLocations');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">-- Select --</option>' +
+  const camSel = document.getElementById('camSavedLocations');
+  const optStr = '<option value="">-- Select --</option>' +
     Object.keys(serverLocations).map(k => `<option value="${k}">${k}</option>`).join('');
+  if (sel) sel.innerHTML = optStr;
+  if (camSel) camSel.innerHTML = optStr;
 }
 
 async function saveSpectatorPosition() {
@@ -484,11 +497,18 @@ function startPolling() {
 async function refreshStatus() {
   const data = await api('/status');
   if (!data.connected) {
-    setConnected(false);
-    clearInterval(pollInterval);
-    toast('Lost connection to CARLA', 'err');
-    addLog('Connection lost', 'err');
+    if (document.getElementById('connectBtn').style.display === 'none') {
+      setConnected(false);
+      clearInterval(pollInterval);
+      toast('Lost connection to CARLA', 'err');
+      addLog('Connection lost', 'err');
+    }
     return;
+  }
+
+  // Sync UI if we find we are connected but UI says otherwise
+  if (document.getElementById('connectBtn').style.display !== 'none') {
+    setConnected(true, data);
   }
   document.getElementById('infoMap').textContent = data.map;
   document.getElementById('infoActors').textContent = data.actor_count;
@@ -513,7 +533,10 @@ async function refreshStatus() {
         <td>${a.id}</td>
         <td><span class="badge ${cls}">${a.type.split('.').slice(0, 2).join('.')}</span></td>
         <td>${a.x}</td><td>${a.y}</td><td>${a.z}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="destroyActor(${a.id})">X</button></td>
+        <td style="display:flex; gap:4px;">
+          <button class="btn btn-cyan btn-xs" onclick="attachCamera(${a.id})" title="Attach Camera">CAM</button>
+          <button class="btn btn-danger btn-xs" onclick="destroyActor(${a.id})">X</button>
+        </td>
       </tr>`;
     }).join('');
   }
@@ -915,25 +938,64 @@ async function fetchLaneInfo() {
   const res = await api('/lane/current', 'GET');
   if (!res.success) {
     document.getElementById('laneRoad').innerText = '--';
-    document.getElementById('laneId').innerText = '--';
-    document.getElementById('laneType').innerText = 'Road missing';
-    document.getElementById('laneVehicleList').innerHTML = `<div style="color:var(--c-red);font-size:0.8rem;text-align:center;">${res.error}</div>`;
+    document.getElementById('laneSection').innerText = '--';
+    document.getElementById('laneJunc').innerText = '--';
+    document.getElementById('laneS').innerText = '--';
+    document.getElementById('laneSchematic').innerHTML = `<div style="color:var(--c-red);font-size:0.7rem;text-align:center;">${res.error}</div>`;
+    document.getElementById('laneVehicleList').innerHTML = '';
     return;
   }
 
   document.getElementById('laneRoad').innerText = res.road_id;
-  document.getElementById('laneId').innerText = res.lane_id;
-  document.getElementById('laneType').innerText = `${res.lane_type} (${res.lane_width}m)`;
+  document.getElementById('laneSection').innerText = res.section_id;
+  document.getElementById('laneJunc').innerText = res.is_junction ? `YES (${res.junction_id})` : 'NO';
+  document.getElementById('laneS').innerText = res.s.toFixed(1) + 'm';
+
+  // Render Lane Schematic
+  const schematic = document.getElementById('laneSchematic');
+  schematic.innerHTML = res.lanes.map(l => {
+    const isCurrent = l.is_current;
+    const type = l.type.toUpperCase();
+
+    let bg = 'rgba(255,255,255,0.02)';
+    let accent = 'var(--c-dim)';
+
+    if (type === 'DRIVING') {
+      accent = isCurrent ? 'var(--c-accent)' : 'var(--c-dim)';
+      bg = isCurrent ? 'rgba(0, 212, 245, 0.12)' : 'rgba(255,255,255,0.05)';
+    } else if (type === 'SIDEWALK') {
+      accent = 'var(--c-muted)';
+      bg = 'rgba(29, 37, 53, 0.6)';
+    } else if (type === 'SHOULDER' || type === 'PARKING') {
+      accent = 'var(--c-muted)';
+      bg = 'rgba(29, 37, 53, 0.3)';
+    }
+
+    return `
+      <div style="display:flex; align-items:center; gap:8px; padding:4px 10px; background:${bg}; border:1px solid ${isCurrent ? 'var(--c-accent)' : 'rgba(255,255,255,0.05)'}; position:relative; overflow:hidden;">
+        ${isCurrent ? '<div style="position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--c-accent);"></div>' : ''}
+        <span style="font-family:'Share Tech Mono'; font-size:0.75rem; color:${accent}; width:35px; text-align:right;">${l.lane_id}</span>
+        <div style="flex:1; display:flex; flex-direction:column; gap:1px;">
+            <div style="font-size:0.55rem; color:${accent}; font-weight:700; letter-spacing:0.05em;">${type}</div>
+            <div style="height:2px; background:${accent}; opacity:0.15;"></div>
+        </div>
+        <span style="font-family:'Share Tech Mono'; font-size:0.6rem; color:var(--c-muted); opacity:0.8;">${l.width.toFixed(1)}m</span>
+      </div>
+    `;
+  }).join('');
 
   const list = document.getElementById('laneVehicleList');
   if (res.vehicles.length === 0) {
-    list.innerHTML = '<div style="color:var(--c-dim);font-size:0.8rem;text-align:center;">Lane empty</div>';
+    list.innerHTML = '<div style="color:var(--c-dim);font-size:0.8rem;text-align:center;">Road empty</div>';
   } else {
     list.innerHTML = res.vehicles.map(v => `
       <div class="actor-card" style="margin-bottom:6px; padding:6px 10px; font-size:0.85rem; background:rgba(255,255,255,0.03); border-radius:2px; border:1px solid var(--border);">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div style="display:grid;">
-            <span style="color:var(--c-cyan); font-weight:700; font-family:'Share Tech Mono';">#${v.id}</span>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <span style="color:var(--c-cyan); font-weight:700; font-family:'Share Tech Mono';">#${v.id}</span>
+              <span style="background:var(--border-hi); color:var(--c-bright); font-size:0.6rem; padding:1px 4px; font-family:'Share Tech Mono';">LANE ${v.lane_id}</span>
+            </div>
             <span style="color:var(--c-dim); font-size:0.7rem; text-transform:uppercase;">${v.type_id.split('.').pop().replace(/_/g, ' ')}</span>
           </div>
           <div style="text-align:right;">
@@ -987,6 +1049,251 @@ async function clearLaneVehicles() {
   }
 }
 
+// ── Camera Manager ─────────────────────────────────────────────
+async function attachCamera(id) {
+  toast('Attaching camera to actor ' + id + '...');
+  const res = await api('/camera/attach', 'POST', { parent_id: id });
+  if (res.success) {
+    toast(`Camera ${res.actor_id} attached! Loading preview...`, 'ok');
+    addLog(`Camera ID:${res.actor_id} attached to parent ID:${id}`, 'ok');
+
+    // Auto-select this camera for stream
+    await api('/camera/set_stream_source', 'POST', { id: res.actor_id });
+
+    // Refresh the camera list and open preview window if not open
+    refreshCameras();
+    openWin('win-cameras');
+  } else {
+    toast('Attach failed: ' + res.error, 'err');
+  }
+}
+
+async function refreshCameras() {
+  const container = document.getElementById('cameraListContainer');
+  if (!container) return;
+  const data = await api('/camera/list');
+  if (!data.success) {
+    container.innerHTML = `<div style="color:var(--c-red); font-size:0.7rem; padding:10px;">Error: ${data.error}</div>`;
+    return;
+  }
+  if (data.cameras.length === 0) {
+    container.innerHTML = `<div style="color:var(--c-dim); font-size:0.7rem; padding:10px; font-family:'Share Tech Mono'; text-align:center;">NO SENSORS FOUND</div>`;
+    return;
+  }
+
+  container.innerHTML = data.cameras.map(c => {
+    const isStreaming = c.is_streaming;
+    const typeShort = c.type.split('.').pop().toUpperCase();
+    return `
+      <div class="actor-card cam-card ${isStreaming ? 'selected' : ''}" data-id="${c.id}" onclick='selectCamera(${JSON.stringify(c).replace(/'/g, "\\'")})' 
+           style="cursor:pointer; display:flex; flex-direction:column; gap:2px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; pointer-events:none;">
+          <span style="font-size:0.75rem; color:var(--c-bright);">#${c.id}</span>
+          <span class="badge ${isStreaming ? 'badge-v' : 'badge-o'}">${typeShort}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Auto-update inputs if camera is selected, window is active, and NOT focused
+  const badgeId = document.getElementById('camBadgeId');
+  const selectedId = badgeId ? badgeId.textContent : null;
+  const followCheck = document.getElementById('camFollowSync');
+  const isSyncEnabled = followCheck ? followCheck.checked : true;
+
+  if (selectedId && selectedId !== '--' && isSyncEnabled) {
+    const cam = data.cameras.find(c => c.id == selectedId);
+    if (cam) {
+      // If ANY of the inputs is focused, don't update ANY of them to avoid jumping
+      const inputs = ['camX', 'camY', 'camZ', 'camPitch', 'camYaw', 'camRoll'];
+      const hasFocus = inputs.some(id => document.activeElement === document.getElementById(id));
+
+      if (!hasFocus) {
+        updateInputIfNoFocus('camX', cam.x.toFixed(2));
+        updateInputIfNoFocus('camY', cam.y.toFixed(2));
+        updateInputIfNoFocus('camZ', cam.z.toFixed(2));
+        updateInputIfNoFocus('camPitch', Math.round(cam.pitch));
+        updateInputIfNoFocus('camYaw', Math.round(cam.yaw));
+        updateInputIfNoFocus('camRoll', Math.round(cam.roll));
+      }
+    }
+  }
+}
+
+function updateInputIfNoFocus(id, val) {
+  const el = document.getElementById(id);
+  if (el && document.activeElement !== el) {
+    el.value = val;
+  }
+}
+
+async function selectCamera(c) {
+  const panel = document.getElementById('camControlPanel');
+  panel.style.opacity = '1';
+  panel.style.pointerEvents = 'all';
+
+  document.getElementById('camX').value = c.x.toFixed(2);
+  document.getElementById('camY').value = c.y.toFixed(2);
+  document.getElementById('camZ').value = c.z.toFixed(2);
+  document.getElementById('camPitch').value = Math.round(c.pitch);
+  document.getElementById('camYaw').value = Math.round(c.yaw);
+  document.getElementById('camRoll').value = Math.round(c.roll);
+
+  const badgeId = document.getElementById('camBadgeId');
+  const badge = document.getElementById('camBadge');
+  if (badgeId) badgeId.textContent = c.id;
+  if (badge) badge.style.display = 'flex';
+
+  const dBtn = document.getElementById('camDestroyBtn');
+  if (dBtn) {
+    dBtn.onclick = async () => {
+      if (!confirm(`Permanently destroy sensor #${c.id}?`)) return;
+      toast(`Destroying sensor #${c.id}...`);
+      const res = await api('/camera/delete', 'POST', { id: c.id });
+      if (res.success) {
+        toast(`Sensor #${c.id} destroyed`, 'ok');
+        refreshCameras();
+        stopCamPreview();
+        panel.style.opacity = '0.4';
+        panel.style.pointerEvents = 'none';
+        if (badgeId) badgeId.textContent = '--';
+        if (badge) badge.style.display = 'none';
+      } else {
+        toast(res.error, 'err');
+      }
+    };
+  }
+
+  await setCameraAsSource(c.id);
+  startCamPreview(c.id);
+
+  document.querySelectorAll('.cam-card').forEach(card => {
+    card.classList.toggle('selected', card.getAttribute('data-id') == c.id);
+  });
+}
+
+function startCamPreview(id) {
+  const img = document.getElementById('camPreviewImg');
+  const ovr = document.getElementById('camPreviewOverlay');
+  const ph = document.getElementById('camPreviewPlaceholder');
+  if (!img) return;
+  // MJPEG stream – set once, browser streams automatically
+  img.src = id ? `/video_feed?id=${id}` : `/video_feed`;
+  img.style.display = 'block';
+  if (ovr) ovr.style.display = 'block';
+  if (ph) ph.style.display = 'none';
+}
+
+
+function stopCamPreview() {
+  const img = document.getElementById('camPreviewImg');
+  const ovr = document.getElementById('camPreviewOverlay');
+  const ph = document.getElementById('camPreviewPlaceholder');
+  if (!img) return;
+  img.src = '';
+  img.style.display = 'none';
+  if (ovr) ovr.style.display = 'none';
+  if (ph) ph.style.display = 'flex';
+}
+
+function copyCamLink() {
+  const idEl = document.getElementById('camBadgeId');
+  const id = idEl ? idEl.textContent : null;
+  const baseUrl = window.location.origin + '/video_feed';
+  const url = (id && id !== '--') ? `${baseUrl}?id=${id}` : baseUrl;
+
+  navigator.clipboard.writeText(url).then(() => {
+    toast('Live link copied to clipboard!', 'ok');
+  }).catch(err => {
+    toast('Failed to copy link', 'err');
+  });
+}
+
+async function setCameraAsSource(id) {
+  const res = await api('/camera/set_stream_source', 'POST', { id });
+  if (!res.success) toast(res.error, 'err');
+}
+
+async function updateCameraPosition() {
+  const idEl = document.getElementById('camBadgeId');
+  const id = idEl ? idEl.textContent : null;
+  if (!id || id === '--') return;
+  const d = {
+    id: parseInt(id),
+    x: parseFloat(document.getElementById('camX').value),
+    y: parseFloat(document.getElementById('camY').value),
+    z: parseFloat(document.getElementById('camZ').value),
+    pitch: parseFloat(document.getElementById('camPitch').value),
+    yaw: parseFloat(document.getElementById('camYaw').value),
+    roll: parseFloat(document.getElementById('camRoll').value),
+  };
+  const res = await api('/camera/update', 'POST', d);
+  if (res.success) {
+    toast(`Cam #${id} updated`, 'ok');
+    refreshCameras();
+  } else toast(res.error, 'err');
+}
+
+async function spawnType(type) {
+  const bps = { 'rgb': 'sensor.camera.rgb', 'depth': 'sensor.camera.depth', 'sem': 'sensor.camera.semantic_segmentation', 'dvs': 'sensor.camera.dvs' };
+  const d = { blueprint: bps[type] || bps['rgb'], width: 640, height: 360, fov: 90 };
+  const res = await api('/camera/spawn', 'POST', d);
+  if (res.success) {
+    toast(`Spawned ${type.toUpperCase()} (#${res.actor_id})`, 'ok');
+    refreshCameras();
+  } else toast(res.error, 'err');
+}
+function camSetToSpectator() {
+  document.getElementById('camX').value = document.getElementById('sX').textContent;
+  document.getElementById('camY').value = document.getElementById('sY').textContent;
+  document.getElementById('camZ').value = document.getElementById('sZ').textContent;
+  document.getElementById('camPitch').value = document.getElementById('sPitch').textContent;
+  document.getElementById('camYaw').value = document.getElementById('sYaw').textContent;
+  document.getElementById('camRoll').value = document.getElementById('sRoll').textContent;
+  toast('Matched spectator', 'info');
+}
+
+function camLoadPosition(name) {
+  if (!name) return;
+  const loc = serverLocations[name];
+  if (!loc) { toast('Location not found: ' + name, 'err'); return; }
+  document.getElementById('camX').value = parseFloat(loc.x).toFixed(2);
+  document.getElementById('camY').value = parseFloat(loc.y).toFixed(2);
+  document.getElementById('camZ').value = parseFloat(loc.z).toFixed(2);
+  document.getElementById('camPitch').value = Math.round(parseFloat(loc.pitch));
+  document.getElementById('camYaw').value = Math.round(parseFloat(loc.yaw));
+  document.getElementById('camRoll').value = Math.round(parseFloat(loc.roll));
+  toast('Preset loaded: ' + name, 'info');
+  updateCameraPosition();
+}
+
+async function camSavePosition() {
+  const idEl = document.getElementById('camBadgeId');
+  const id = idEl ? idEl.textContent : 'Unknown';
+  const name = prompt('Enter name for this location:', `Cam #${id} Loc ` + new Date().toLocaleTimeString());
+  if (!name) return;
+  const payload = {
+    name,
+    x: document.getElementById('camX').value,
+    y: document.getElementById('camY').value,
+    z: document.getElementById('camZ').value,
+    pitch: document.getElementById('camPitch').value,
+    yaw: document.getElementById('camYaw').value,
+    roll: document.getElementById('camRoll').value,
+  };
+  toast(`Saving "${name}"...`);
+  const res = await api('/history/location', 'POST', payload);
+  if (res.success) {
+    toast(`Saved: ${name}`, 'ok');
+    initHistory();
+  } else toast(res.error, 'err');
+}
+
+async function spawnNewCamera() {
+  // Deprecated in favor of spawnType, but kept for compatibility if needed.
+  spawnType('rgb');
+}
+
 // ── Init ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   buildWeatherSliders();
@@ -994,8 +1301,9 @@ document.addEventListener('DOMContentLoaded', () => {
   restoreState();
   initHistory();
 
-  // default open connect window if no saved state
-  const state = loadState();
+  // Start polling to check if already connected on server
+  startPolling();
+
   if (!state['win-connect'] || !state['win-connect'].open) {
     openWin('win-connect', true);
   }

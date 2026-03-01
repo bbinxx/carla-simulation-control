@@ -75,6 +75,9 @@ def connect():
     timeout = float(data.get("timeout", 10.0))
 
     try:
+        from core.camera import stop_stream_camera
+        stop_stream_camera()
+        
         client = carla.Client(host, port)
         client.set_timeout(timeout)
 

@@ -29,11 +29,19 @@ WEATHER_PRESETS = {
 def get_world():
     """Return the current CARLA world."""
     with state_lock:
+        world = carla_state.get("world")
+        if world:
+            return world
         client = carla_state.get("client")
         connected = carla_state.get("connected")
-    if not connected or client is None:
-        raise RuntimeError("Not connected to CARLA")
-    return client.get_world()
+    
+    if client and connected:
+        try:
+            return client.get_world()
+        except Exception:
+            pass
+            
+    raise RuntimeError("Not connected to CARLA")
 
 def get_spectator_transform(world=None):
     """Return spectator transform dict."""

@@ -1,106 +1,231 @@
 # d:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\core\camera.py
-import carla
 import cv2
+import base64
 import numpy as np
 import threading
-import time
 import logging
-import base64
 from config.state import carla_state, state_lock
 
 logger = logging.getLogger(__name__)
 
-# Streaming States
-_stream_frame = None
-_stream_lock  = threading.Lock()
-_stream_camera = None
-_stream_camera_lock = threading.Lock()
+# ── Frame Store ───────────────────────────────────────────────────────────────
+# { actor_id (int or None) : latest jpeg bytes }
+# None key = internal spectator-follow camera
+_frames      = {}
+_frames_lock = threading.Lock()
 
-def get_stream_frame():
-    with _stream_lock:
-        return _stream_frame
+# ── Active Listeners ──────────────────────────────────────────────────────────
+# { actor_id (int) : actor_object }  — holds strong refs so GC won't drop them
+_listener_actors  = {}
+_listeners_lock   = threading.Lock()
 
-def stop_stream_camera():
-    global _stream_camera, _stream_frame
-    with _stream_camera_lock:
-        if _stream_camera is not None:
+# ── Internal Spectator Camera ─────────────────────────────────────────────────
+_spec_camera      = None
+_spec_camera_lock = threading.Lock()
+
+# ── Dashboard "selected" stream id ────────────────────────────────────────────
+_selected_id      = None   # int or None
+_selected_id_lock = threading.Lock()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Public helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def set_stream_source(actor_id):
+    """Set the dashboard's 'main' camera. actor_id is int or None."""
+    global _selected_id
+    with _selected_id_lock:
+        _selected_id = actor_id
+
+
+def get_stream_frame(actor_id=None):
+    """
+    Return the latest JPEG bytes for the requested actor_id.
+    Pass actor_id=None to get the dashboard / selected stream.
+    """
+    with _selected_id_lock:
+        sid = _selected_id
+
+    target = actor_id if actor_id is not None else sid
+    with _frames_lock:
+        return _frames.get(target)
+
+
+def reset_streams():
+    """Called on connect/disconnect to purge all state."""
+    global _spec_camera, _selected_id
+    # Stop internal camera
+    with _spec_camera_lock:
+        if _spec_camera is not None:
             try:
-                _stream_camera.stop()
-                _stream_camera.destroy()
-                logger.info("Stream camera stopped")
-            except Exception as e:
-                logger.warning(f"Stream camera stop error: {e}")
-            _stream_camera = None
-    with _stream_lock:
-        _stream_frame = None
+                _spec_camera.stop()
+                _spec_camera.destroy()
+            except Exception:
+                pass
+            _spec_camera = None
+    # Wipe frames and listeners
+    with _frames_lock:
+        _frames.clear()
+    with _listeners_lock:
+        _listener_actors.clear()
+    with _selected_id_lock:
+        _selected_id = None
+    logger.info("Camera streams reset")
 
-def ensure_stream_camera(client):
-    global _stream_camera, _stream_frame
-    with _stream_camera_lock:
-        if _stream_camera is not None:
+# keep old name for compatibility
+stop_stream_camera = reset_streams
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Frame callback factory
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _make_callback(key):
+    """Returns a CARLA listen() callback that encodes BGR→JPEG into _frames[key]."""
+    def _on_frame(img):
+        try:
+            arr = np.frombuffer(img.raw_data, dtype=np.uint8).reshape((img.height, img.width, 4))
+            ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, 75])
+            if ok:
+                with _frames_lock:
+                    _frames[key] = buf.tobytes()
+        except Exception as exc:
+            logger.warning(f"Frame encode error (id={key}): {exc}")
+    return _on_frame
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Ensure a camera is streaming
+# ─────────────────────────────────────────────────────────────────────────────
+
+def ensure_stream_camera(client, actor_id=None):
+    """
+    Attach a CARLA listen() callback for actor_id if not already active.
+    actor_id=None → spawn/maintain the internal spectator-follow camera.
+    """
+    with _selected_id_lock:
+        sid = _selected_id
+
+    target = actor_id if actor_id is not None else sid
+
+    # ── External actor ────────────────────────────────────────────────────────
+    if target is not None:
+        with _listeners_lock:
+            if target in _listener_actors:
+                return  # already streaming, actor ref kept alive
+
+        try:
+            world  = client.get_world()
+            actor  = world.get_actor(target)
+            if not actor or not actor.is_alive:
+                logger.warning(f"Camera #{target} not found or dead")
+                return
+
+            logger.info(f"Attaching stream listener to camera #{target}")
+            actor.listen(_make_callback(target))
+
+            with _listeners_lock:
+                _listener_actors[target] = actor  # keep strong ref
+        except Exception as exc:
+            logger.error(f"Failed to attach listener to #{target}: {exc}")
+        return
+
+    # ── Internal spectator camera ─────────────────────────────────────────────
+    with _spec_camera_lock:
+        global _spec_camera
+        if _spec_camera is not None:
             try:
-                world = client.get_world()
-                _stream_camera.set_transform(world.get_spectator().get_transform())
-            except: pass
-            return
+                if _spec_camera.is_alive:
+                    world = client.get_world()
+                    _spec_camera.set_transform(world.get_spectator().get_transform())
+                    return
+            except Exception:
+                pass
+            # camera is dead – clean up and respawn below
+            _spec_camera = None
+
         try:
             world = client.get_world()
-            bpl   = world.get_blueprint_library()
-            bp    = bpl.find("sensor.camera.rgb")
-            bp.set_attribute("image_size_x",  "800")
-            bp.set_attribute("image_size_y",  "450")
-            bp.set_attribute("fov",           "90")
-            bp.set_attribute("sensor_tick",   "0.04")
+            bp    = world.get_blueprint_library().find("sensor.camera.rgb")
+            bp.set_attribute("image_size_x", "800")
+            bp.set_attribute("image_size_y", "450")
+            cam   = world.spawn_actor(bp, world.get_spectator().get_transform())
 
-            transform = world.get_spectator().get_transform()
-            cam = world.spawn_actor(bp, transform)
+            spectator = world.get_spectator()
 
-            def on_frame(img):
-                global _stream_frame
+            def _on_spec_frame(img):
+                # Follow spectator every frame – cheap transform update
                 try:
-                    cam.set_transform(world.get_spectator().get_transform())
-                    arr = np.frombuffer(img.raw_data, dtype=np.uint8)
-                    arr = arr.reshape((img.height, img.width, 4))
-                    bgr = arr[:, :, :3]
-                    _, buf = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                    with _stream_lock:
-                        _stream_frame = buf.tobytes()
-                except Exception as e:
-                    logger.error(f"Stream callback error: {e}")
+                    with _selected_id_lock:
+                        sel = _selected_id
+                    if sel is None:
+                        cam.set_transform(spectator.get_transform())
+                    arr = np.frombuffer(img.raw_data, dtype=np.uint8).reshape((img.height, img.width, 4))
+                    ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, 75])
+                    if ok:
+                        with _frames_lock:
+                            _frames[None] = buf.tobytes()
+                except Exception:
+                    pass
 
-            cam.listen(on_frame)
-            _stream_camera = cam
-            logger.info("Live stream camera active")
-        except Exception as e:
-            logger.error(f"Stream camera spawn error: {e}")
+            cam.listen(_on_spec_frame)
+            _spec_camera = cam
+            logger.info("Spectator stream camera spawned")
+        except Exception as exc:
+            logger.error(f"Failed to spawn spectator camera: {exc}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Camera list / control helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_all_cameras(world):
+    with _selected_id_lock:
+        sid = _selected_id
+    cameras = []
+    for actor in world.get_actors().filter("sensor.camera.*"):
+        t = actor.get_transform()
+        cameras.append({
+            "id":           actor.id,
+            "type":         actor.type_id,
+            "x":            round(t.location.x,  2),
+            "y":            round(t.location.y,  2),
+            "z":            round(t.location.z,  2),
+            "pitch":        round(t.rotation.pitch, 2),
+            "yaw":          round(t.rotation.yaw,   2),
+            "roll":         round(t.rotation.roll,  2),
+            "is_streaming": (actor.id == sid),
+            "has_feed":     (actor.id in _listener_actors),
+        })
+    return cameras
+
 
 def take_screenshot(world, width=1280, height=720, fov=90):
-    """Temporary camera for a high-quality snapshot."""
+    """Spawn a temporary camera, capture one PNG frame, destroy it."""
+    import threading as _t
     bpl = world.get_blueprint_library()
-    bp = bpl.find("sensor.camera.rgb")
+    bp  = bpl.find("sensor.camera.rgb")
     bp.set_attribute("image_size_x", str(width))
     bp.set_attribute("image_size_y", str(height))
-    bp.set_attribute("fov", str(fov))
+    bp.set_attribute("fov",          str(fov))
 
-    spec_transform = world.get_spectator().get_transform()
-    camera = world.spawn_actor(bp, spec_transform)
-    
-    image_event = threading.Event()
-    captured = {}
+    camera = world.spawn_actor(bp, world.get_spectator().get_transform())
+    ev     = _t.Event()
+    result = {}
 
-    def on_image(img):
-        if image_event.is_set(): return
+    def _on_image(img):
+        if ev.is_set():
+            return
         try:
-            arr = np.frombuffer(img.raw_data, dtype=np.uint8)
-            arr = np.reshape(arr, (img.height, img.width, 4))
-            bgr = arr[:, :, :3]
-            _, buf = cv2.imencode(".png", bgr)
-            captured["data"] = base64.b64encode(buf).decode("utf-8")
+            arr = np.frombuffer(img.raw_data, dtype=np.uint8).reshape((img.height, img.width, 4))
+            _, buf = cv2.imencode(".png", arr[:, :, :3])
+            result["data"] = base64.b64encode(buf).decode("utf-8")
         finally:
-            image_event.set()
+            ev.set()
 
-    camera.listen(on_image)
-    image_event.wait(timeout=5.0)
+    camera.listen(_on_image)
+    ev.wait(timeout=5.0)
     camera.stop()
     camera.destroy()
-    return captured.get("data")
+    return result.get("data")

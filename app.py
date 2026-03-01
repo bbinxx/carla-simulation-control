@@ -5,8 +5,11 @@ import logging
 from core.database import init_db
 from core.background import start_background_tasks
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+logging.getLogger('werkzeug').setLevel(logging.WARNING)  # suppress per-request logs
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
-app.logger.setLevel(logging.INFO)
 app.secret_key = "carla_control_secret"
 
 # Initialize Data
@@ -26,6 +29,7 @@ from routes.blueprints_api import blueprint as bp_blueprints
 from routes.spawner import blueprint as bp_spawner
 from routes.destroy import blueprint as bp_destroy
 from routes.lane import blueprint as bp_lane
+from routes.camera import blueprint as bp_camera
 
 app.register_blueprint(bp_main)
 app.register_blueprint(bp_history)
@@ -37,6 +41,7 @@ app.register_blueprint(bp_blueprints)
 app.register_blueprint(bp_spawner)
 app.register_blueprint(bp_destroy)
 app.register_blueprint(bp_lane)
+app.register_blueprint(bp_camera)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

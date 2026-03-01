@@ -62,22 +62,35 @@ def screenshot():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-def _gen_frames():
+def _gen_frames(actor_id):
+    """MJPEG generator – ensure_stream_camera was already called at request-time."""
     while True:
-        frame = get_stream_frame()
+        frame = get_stream_frame(actor_id)
         if frame:
             yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
-            time.sleep(0.04)
+            time.sleep(0.033)  # ~30 fps ceiling
         else:
-            with state_lock:
-                client = carla_state.get("client")
-            if client: ensure_stream_camera(client)
-            time.sleep(0.5)
+            time.sleep(0.05)   # wait for first frame without spinning
+
+@blueprint.route("/debug/streams")
+def debug_streams():
+    from core.camera import _frames, _listener_actors, _selected_id
+    return jsonify({
+        "selected_id": _selected_id,
+        "listeners":   sorted(list(_listener_actors.keys())),
+        "frame_ids":   sorted([str(k) for k in _frames.keys()]),
+        "frame_sizes": {str(k): len(v) for k, v in _frames.items()},
+    })
 
 @blueprint.route("/video_feed")
 def video_feed():
+    raw = request.args.get("id", "")
+    actor_id = int(raw) if raw.isdigit() else None
+
     with state_lock:
         client = carla_state.get("client")
-    if not client: return jsonify({"error": "Not connected"}), 400
-    ensure_stream_camera(client)
-    return Response(_gen_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
+    if not client:
+        return "Not connected", 400
+
+    ensure_stream_camera(client, actor_id)
+    return Response(_gen_frames(actor_id), mimetype="multipart/x-mixed-replace; boundary=frame")

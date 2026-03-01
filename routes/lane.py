@@ -12,20 +12,63 @@ def get_current_lane():
     try:
         world = get_world()
         spec_loc = world.get_spectator().get_location()
-        wp = world.get_map().get_waypoint(spec_loc, project_to_road=True, lane_type=carla.LaneType.Any)
+        m = world.get_map()
+        wp = m.get_waypoint(spec_loc, project_to_road=True, lane_type=carla.LaneType.Any)
         if not wp: return jsonify({"success": False, "error": "No waypoint"})
         
+        # Get all lanes at this road section
+        # We can find other lanes by traversing left/right from current
+        lanes = []
+        
+        # Helper to trace lanes
+        def get_lane_data(w):
+            return {
+                "lane_id": w.lane_id,
+                "type": str(w.lane_type).split('.')[-1],
+                "width": round(w.lane_width, 2),
+                "is_current": (w.lane_id == wp.lane_id)
+            }
+
+        # Add current
+        lanes.append(get_lane_data(wp))
+        
+        # Trace Left
+        l = wp.get_left_lane()
+        while l and l.lane_type != carla.LaneType.NONE:
+            lanes.append(get_lane_data(l))
+            l = l.get_left_lane()
+            
+        # Trace Right
+        r = wp.get_right_lane()
+        while r and r.lane_type != carla.LaneType.NONE:
+            lanes.append(get_lane_data(r))
+            r = r.get_right_lane()
+
+        # Sort lanes by ID
+        lanes.sort(key=lambda x: x['lane_id'])
+
         vehicles = []
         for v in world.get_actors().filter("vehicle.*"):
-            v_wp = world.get_map().get_waypoint(v.get_location(), project_to_road=True, lane_type=carla.LaneType.Any)
-            if v_wp and v_wp.road_id == wp.road_id and v_wp.lane_id == wp.lane_id:
+            v_wp = m.get_waypoint(v.get_location(), project_to_road=True, lane_type=carla.LaneType.Any)
+            if v_wp and v_wp.road_id == wp.road_id:
                 vel = v.get_velocity()
                 speed = 3.6 * (vel.x**2 + vel.y**2 + vel.z**2)**0.5
-                vehicles.append({"id": v.id, "type_id": v.type_id, "speed": round(speed, 1)})
+                vehicles.append({
+                    "id": v.id, 
+                    "type_id": v.type_id, 
+                    "speed": round(speed, 1),
+                    "lane_id": v_wp.lane_id
+                })
         
         return jsonify({
-            "success": True, "road_id": wp.road_id, "lane_id": wp.lane_id,
-            "lane_width": round(wp.lane_width, 2), "vehicles": vehicles
+            "success": True, 
+            "road_id": wp.road_id,
+            "section_id": wp.section_id,
+            "is_junction": wp.is_junction,
+            "junction_id": wp.junction_id if wp.is_junction else -1,
+            "s": round(wp.s, 2),
+            "lanes": lanes,
+            "vehicles": vehicles
         })
     except Exception as e: return jsonify({"success": False, "error": str(e)})
 
@@ -59,8 +102,8 @@ def clear_lane():
         count = 0
         from core.vehicles import destroy_actors
         for v in world.get_actors().filter("vehicle.*"):
-            v_wp = world.get_map().get_waypoint(v.get_location(), project_to_road=True)
-            if v_wp and v_wp.road_id == wp.road_id and v_wp.lane_id == wp.lane_id:
+            v_wp = m.get_waypoint(v.get_location(), project_to_road=True, lane_type=carla.LaneType.Any)
+            if v_wp and v_wp.road_id == wp.road_id:
                 destroy_actors(world, actor_id=v.id)
                 count += 1
         return jsonify({"success": True, "cleared": count})
