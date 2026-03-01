@@ -63,17 +63,6 @@
       line-height: 1.4;
     }
 
-    /* scanlines */
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 9998;
-      background: repeating-linear-gradient(0deg,
-          transparent 0px, transparent 3px,
-          rgba(0, 180, 220, 0.012) 3px, rgba(0, 180, 220, 0.012) 4px);
-    }
 
     /* ═══════════════════════════════════════════════════════════
        WAYBAR
@@ -281,10 +270,6 @@
       top: var(--tb-height);
       right: 0;
       bottom: 0;
-      background-image:
-        linear-gradient(rgba(29, 37, 53, 0.35) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(29, 37, 53, 0.35) 1px, transparent 1px);
-      background-size: 36px 36px;
     }
 
     #disconnectedPlaceholder {
