@@ -1,71 +1,73 @@
 
+# 🚦 AI-Based Smart Traffic Control System (CARLA Control Panel v2)
 
-# 🚦 AI-Based Smart Traffic Control System (CARLA Control)
+A powerful, high-performance web orchestration platform for the **CARLA Autonomous Driving Simulator**. This system provides a unified interface for real-time monitoring, traffic orchestration, and environment manipulation, designed to streamline autonomous vehicle research and simulation management.
 
-A comprehensive, modular web interface for real-time monitoring and control of the CARLA simulator. This system provides advanced tools for traffic management, environment manipulation, and AI behavior orchestration.
+## 🌟 Key Features
 
-## 🚀 Features
+### 📡 Real-Time Visual Intelligence
+- **Persistent Spectator Sync**: A "follow-cam" system that automatically tracks the simulator's spectator view in the web dashboard.
+- **Multi-Camera MJPEG Streaming**: Low-latency, optimized (800x450 @ 25 FPS) video feeds from any camera actor in the world.
+- **Dynamic 3D Debug Overlays**: Flicker-free 3D bounding boxes for vehicles, pedestrians, and traffic lights, complete with real-time speed labels and distance-based culling (100m proximity).
 
-### 📡 Real-Time Monitoring
-- **Live Video Feed**: Low-latency MJPEG stream synchronized with the spectator view.
-- **Spectator Tracking**: Live camera actor that follows simulator movement in real-time.
-- **Performance Optimized**: Tuned 800x450 resolution at 25 FPS for responsive visual feedback.
+### 🛠️ Advanced Traffic Orchestration
+- **Modular Spawner**: One-click deployment for Vehicles (Autopilot-enabled), NPCs, Walkers, and Emergency responders.
+- **Traffic Manager (TM) Logic**: Integrated behavioral utilities to enforce strict lane discipline and resolve common CARLA navigation loops.
+- **Global Signal Control**: Synchronized control over traffic light states (Red, Yellow, Green) and the ability to "freeze" intersection logic for testing.
 
-### 🛠️ Simulator Control
-- **Advanced Spawner**: Custom spawning for Vehicles, NPCs (Auto-pilot), Walkers, and Emergency vehicles.
-- **Traffic Manager (TM) Logic**: Integrated behavior utility that prevents common CARLA "driving in circles" bugs via strict lane discipline.
-- **Weather Mastery**: Real-time slider-based controls and presets for all CARLA weather parameters.
-- **Environment Object Toggle**: Selective hiding/showing of world objects (buildings, foliage, etc.) by semantic label.
+### 🌤️ Environment & World Management
+- **Weather Mastery**: Real-time slider-based controls and presets for all 10+ CARLA weather parameters (rain, sun, wind, fog, humidity).
+- **Object Visibility Management**: Semantic-based world object toggling (e.g., hide buildings, trees, or foliage) to simplify or complexify the detection environment.
+- **Fast Screenshot Capture**: High-resolution (1280x720) frame capture utility from the current spectator perspective.
 
-### 🔍 Debug & Analysis
-- **Smart Bounding Boxes**: Flicker-free 3D debug overlays for vehicles (with speed labels), pedestrians, and traffic lights.
-- **Proximity Optimized**: System only renders debug primitives within 100m of the spectator for maximum performance.
-- **Traffic Light Control**: Individual or global control over traffic light states (Red, Green, Yellow) including freeze capabilities.
+---
 
-## 📂 Project Structure
+## 📂 Project Architecture
 
 ```text
 CARLA_CONTROL/
-├── app.py              # Flask entry point & Background debug loops
-├── routes/             # Modular API endpoints
-│   ├── main.py         # Live stream & Core UI routes
-│   ├── spawner.py      # Vehicle/Actor spawning logic
-│   ├── traffic.py      # Traffic light orchestration
-│   ├── weather.py      # Environment controls
-│   └── environment.py  # Object visibility management
-├── utils/              # Core Logic Utilities
-│   ├── behaviour.py    # Traffic Manager AI behavior logic
-│   └── helpers.py      # Shared CARLA API wrappers
-├── static/             # Frontend assets (CSS/JS)
-└── templates/          # Responsive UI (index.html)
+├── app.py              # Main Flask entry point & Thread-safe background loops
+├── core/               # Engine logic (Camera processing, Actor tracking)
+├── routes/             # Modular API architecture (Spawning, Traffic, Weather)
+├── utils/              # Helper utilities (Behavioral fixes, CARLA API wrappers)
+├── static/             # Modern Hud-inspired UI (CSS, JS)
+└── templates/          # Single-page Responsive Dashboard
 ```
+
+---
 
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
 - **CARLA Simulator 0.9.16+** (Running as Server)
 - **Python 3.12+**
-- **UV** (Recommended package manager)
+- **UV** (Recommended for performance and dependency management)
 
-### Installation
-1. Ensure your CARLA simulator is running.
-2. Install dependencies:
+### Quick Start
+1. **Launch the CARLA Simulator** (ensure the server is listening on port 2000).
+2. **Sync Dependencies**:
    ```bash
    uv sync
    ```
-3. Run the application:
+3. **Boot the Control Panel**:
    ```bash
-   uv run app.py
+   uv run python app.py
    ```
-4. Open your browser at `http://localhost:5000`
+4. **Access the Web Dashboard**: Navigate to `http://localhost:5000` in your browser.
 
-## ⚙️ Configuration
-The system uses a shared state pattern via `config/state.py`. You can adjust core settings like:
-- **Default Port**: 2000 (CARLA) / 5000 (Web UI)
-- **Target FPS**: Configured via `utils/behaviour.py` and MJPEG sensor ticks.
-- **Debug Distances**: Adjustable in `app.py` for bounding box rendering.
+---
 
-## 🎯 Usage Tips
-- **Spectator Sync**: Move around in the CARLA window; the Web UI stream follows your perspective automatically.
-- **TM Fix**: If vehicles behave oddly, use the "TM Fix All" button to re-apply strict lane discipline rules.
-- **ROI Analysis**: Built-in support for MJPEG-level frame analysis for third-party computer vision integration.
+## 🎯 Usage Strategies
+- **Connectivity**: Use the sidebar `CONN` button to link the panel to your running CARLA instance.
+- **Spectator Mode**: Move your perspective in the CARLA simulation window; the web feed will track your movement automatically.
+- **Stability**: If vehicles show erratic behavior, use the "Force Auto-Pilot" or "Fix Lane Discipline" buttons to re-initialize Traffic Manager rules.
+
+---
+
+## 🏗️ Technical Stack
+- **Core**: Python, Flask, CARLA Python API
+- **Processing**: OpenCV, NumPy, Threading (for non-blocking MJPEG streams)
+- **Frontend**: Vanilla HTML5, CSS (Modern HUD aesthetics), and JavaScript (Async Fetch API)
+
+---
+*Developed for advanced AI-driven traffic monitoring and autonomous vehicle simulation.*
