@@ -84,10 +84,13 @@ def connect():
         world = client.get_world()
         map_name = world.get_map().name
 
-        # Sync Mode Settings
+        # Sync Mode Settings — 30Hz physics + substepping for max smoothness
         settings = world.get_settings()
         settings.synchronous_mode = True
-        settings.fixed_delta_seconds = 0.05
+        settings.fixed_delta_seconds = 0.033   # 30 Hz (was 20 Hz)
+        settings.substepping = True
+        settings.max_substep_delta_time = 0.01
+        settings.max_substeps = 10
         world.apply_settings(settings)
 
         # Traffic Manager Setup

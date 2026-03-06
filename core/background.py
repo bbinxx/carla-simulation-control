@@ -1,9 +1,9 @@
-# d:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\core\background.py
 import threading
 import time
 import carla
 import logging
 from config.state import carla_state, state_lock
+from core.vehicles import precision_red_light_stop
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +87,7 @@ def simulation_loop():
         if world and connected:
             try:
                 world.tick()
+                precision_red_light_stop(world)
             except Exception:
                 pass
         time.sleep(0.005)
