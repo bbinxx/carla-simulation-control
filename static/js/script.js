@@ -933,6 +933,20 @@ function stopStream() {
   addLog('Live stream stopped');
 }
 
+async function setStreamResolution() {
+  const parts = document.getElementById('liveStreamRes').value.split('x');
+  const w = parseInt(parts[0]);
+  const h = parseInt(parts[1]);
+  toast(`Setting resolution to ${w}x${h}...`);
+  const res = await api('/camera/set_stream_resolution', 'POST', { width: w, height: h });
+  if (res.success) {
+    toast(`Resolution set to ${w}x${h}`, 'ok');
+    addLog(`Stream resolution updated to ${w}x${h}`, 'ok');
+  } else {
+    toast(res.error, 'err');
+  }
+}
+
 // ── Lane Info ──────────────────────────────────────────────────
 async function fetchLaneInfo() {
   const res = await api('/lane/current', 'GET');

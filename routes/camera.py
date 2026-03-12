@@ -58,6 +58,22 @@ def set_stream():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+@blueprint.route("/camera/set_stream_resolution", methods=["POST"])
+def set_stream_resolution():
+    try:
+        d = request.json or {}
+        w = int(d.get("width", 640))
+        h = int(d.get("height", 360))
+        with state_lock:
+            carla_state["stream_width"] = w
+            carla_state["stream_height"] = h
+            
+        from core.camera import reset_spectator_camera
+        reset_spectator_camera()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @blueprint.route("/camera/update", methods=["POST"])
 def update_camera():
     """Update camera location. Attributes (FOV/Size) require re-spawn."""

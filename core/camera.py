@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 # { actor_id (int or None) : latest jpeg bytes }
 # None key = internal spectator-follow camera
 _frames      = {}
+_frame_counters = {}
 _frames_lock = threading.Lock()
 
 # ── Active Listeners ──────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ def get_stream_frame(actor_id=None):
 
     target = actor_id if actor_id is not None else sid
     with _frames_lock:
-        return _frames.get(target)
+        return _frames.get(target), _frame_counters.get(target, 0)
 
 
 def reset_streams():
@@ -67,6 +68,7 @@ def reset_streams():
     # Wipe frames and listeners
     with _frames_lock:
         _frames.clear()
+        _frame_counters.clear()
     with _listeners_lock:
         _listener_actors.clear()
     with _selected_id_lock:
@@ -75,6 +77,18 @@ def reset_streams():
 
 # keep old name for compatibility
 stop_stream_camera = reset_streams
+
+def reset_spectator_camera():
+    """Destroy spectator so it respawns with new settings."""
+    global _spec_camera
+    with _spec_camera_lock:
+        if _spec_camera is not None:
+            try:
+                _spec_camera.stop()
+                _spec_camera.destroy()
+            except Exception:
+                pass
+            _spec_camera = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -86,10 +100,11 @@ def _make_callback(key):
     def _on_frame(img):
         try:
             arr = np.frombuffer(img.raw_data, dtype=np.uint8).reshape((img.height, img.width, 4))
-            ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, 75])
+            ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, 50])
             if ok:
                 with _frames_lock:
                     _frames[key] = buf.tobytes()
+                    _frame_counters[key] = _frame_counters.get(key, 0) + 1
         except Exception as exc:
             logger.warning(f"Frame encode error (id={key}): {exc}")
     return _on_frame
@@ -148,8 +163,11 @@ def ensure_stream_camera(client, actor_id=None):
         try:
             world = client.get_world()
             bp    = world.get_blueprint_library().find("sensor.camera.rgb")
-            bp.set_attribute("image_size_x", "800")
-            bp.set_attribute("image_size_y", "450")
+            with state_lock:
+                fw = carla_state.get("stream_width", 640)
+                fh = carla_state.get("stream_height", 360)
+            bp.set_attribute("image_size_x", str(fw))
+            bp.set_attribute("image_size_y", str(fh))
             cam   = world.spawn_actor(bp, world.get_spectator().get_transform())
 
             spectator = world.get_spectator()
@@ -162,10 +180,11 @@ def ensure_stream_camera(client, actor_id=None):
                     if sel is None:
                         cam.set_transform(spectator.get_transform())
                     arr = np.frombuffer(img.raw_data, dtype=np.uint8).reshape((img.height, img.width, 4))
-                    ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, 75])
+                    ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, 50])
                     if ok:
                         with _frames_lock:
                             _frames[None] = buf.tobytes()
+                            _frame_counters[None] = _frame_counters.get(None, 0) + 1
                 except Exception:
                     pass
 

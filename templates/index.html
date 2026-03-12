@@ -1925,6 +1925,15 @@
     <div class="win-body">
       <img id="liveStream" />
       <div id="liveStreamStatus">STREAM INACTIVE</div>
+      <div class="field" style="margin-bottom:8px;">
+        <label>Stream Resolution</label>
+        <select id="liveStreamRes" onchange="setStreamResolution()">
+          <option value="400x225">Low (400x225)</option>
+          <option value="640x360" selected>Medium (640x360)</option>
+          <option value="800x450">High (800x450)</option>
+          <option value="1280x720">HD (1280x720)</option>
+        </select>
+      </div>
       <button class="btn btn-cyan btn-full" onclick="startStream()" id="streamBtn">START STREAM</button>
       <button class="btn btn-danger btn-full" onclick="stopStream()" id="streamStopBtn"
         style="display:none;margin-top:6px;">STOP STREAM</button>

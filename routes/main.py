@@ -64,13 +64,15 @@ def screenshot():
 
 def _gen_frames(actor_id):
     """MJPEG generator – ensure_stream_camera was already called at request-time."""
+    last_count = -1
     while True:
-        frame = get_stream_frame(actor_id)
-        if frame:
+        frame, count = get_stream_frame(actor_id)
+        if frame and count != last_count:
             yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
-            time.sleep(0.033)  # ~30 fps ceiling
+            last_count = count
+            time.sleep(0.01) # let the socket breathe
         else:
-            time.sleep(0.05)   # wait for first frame without spinning
+            time.sleep(0.02)   # wait for next frame from CARLA
 
 @blueprint.route("/debug/streams")
 def debug_streams():
