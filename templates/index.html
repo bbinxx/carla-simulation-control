@@ -1367,6 +1367,16 @@
       <button class="btn btn-primary btn-full" id="connectBtn" onclick="connect()">CONNECT</button>
       <button class="btn btn-danger btn-full" id="disconnectBtn" style="display:none;"
         onclick="disconnect()">DISCONNECT</button>
+
+      <div class="field" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+        <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+          <span style="font-size: 0.8rem; font-weight: 600; color: #fff;">Vehicle Control Access</span>
+          <input type="checkbox" id="controlToggle" checked onchange="toggleControl(this.checked)" style="width: 40px; height: 20px; cursor: pointer;">
+        </label>
+        <div style="font-size: 0.65rem; color: rgba(255,255,255,0.5); margin-top: 5px;">
+          When disabled, all spawning, deletion, and traffic control operations are blocked from this panel.
+        </div>
+      </div>
       <div class="sec-head">Server Info</div>
       <div class="info-row"><span class="k">HOST</span><span class="v" id="infoHost">--</span></div>
       <div class="info-row"><span class="k">PORT</span><span class="v" id="infoPort">--</span></div>
@@ -1551,9 +1561,19 @@
             </div>
 
             <div class="sec-head">LOCATION PRESETS</div>
-            <div class="field" style="margin: 0;">
+            <div class="field" style="margin: 0 0 12px 0;">
               <select id="camSavedLocations" onchange="camLoadPosition(this.value)" style="font-size: 0.75rem;">
                 <option value="">-- Load Saved Position --</option>
+              </select>
+            </div>
+
+            <div class="sec-head">GLOBAL CAMERA SETUPS</div>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+               <button class="btn btn-primary btn-sm" onclick="saveCameraSetup()" style="flex: 1;">SAVE ALL AS SETUP</button>
+            </div>
+            <div class="field" style="margin: 0;">
+              <select id="camSavedSetups" onchange="loadCameraSetup(this.value)" style="font-size: 0.75rem;">
+                <option value="">-- Load Camera Setup --</option>
               </select>
             </div>
           </div>
@@ -1925,14 +1945,25 @@
     <div class="win-body">
       <img id="liveStream" />
       <div id="liveStreamStatus">STREAM INACTIVE</div>
-      <div class="field" style="margin-bottom:8px;">
-        <label>Stream Resolution</label>
-        <select id="liveStreamRes" onchange="setStreamResolution()">
-          <option value="400x225">Low (400x225)</option>
-          <option value="640x360" selected>Medium (640x360)</option>
-          <option value="800x450">High (800x450)</option>
-          <option value="1280x720">HD (1280x720)</option>
-        </select>
+      <div class="row2" style="margin-bottom:8px;">
+        <div class="field" style="margin:0;">
+          <label>Stream Resolution</label>
+          <select id="liveStreamRes" onchange="setStreamResolution()">
+            <option value="400x225">Low (400x225)</option>
+            <option value="640x360" selected>Medium (640x360)</option>
+            <option value="800x450">High (800x450)</option>
+            <option value="1280x720">HD (1280x720)</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label>JPEG Quality</label>
+          <select id="liveStreamQual" onchange="setStreamResolution()">
+            <option value="30">Low (30%)</option>
+            <option value="50">Medium (50%)</option>
+            <option value="80" selected>High (80%)</option>
+            <option value="100">Max (100%)</option>
+          </select>
+        </div>
       </div>
       <button class="btn btn-cyan btn-full" onclick="startStream()" id="streamBtn">START STREAM</button>
       <button class="btn btn-danger btn-full" onclick="stopStream()" id="streamStopBtn"
@@ -1959,8 +1990,18 @@
     <div class="win-resize"></div>
   </div>
 
-  <!-- JS -->
-  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+  <!-- JS modules — load order matters: api.js first (defines toast/addLog/api/saveState),
+       then weather.js (defines buildWeatherSliders used in DOMContentLoaded),
+       then feature modules, finally main.js (DOMContentLoaded entry point) -->
+  <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/weather.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/connection.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/spectator.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/traffic.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/spawn.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/environment.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/media.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 
 </html>

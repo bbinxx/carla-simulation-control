@@ -100,7 +100,9 @@ def _make_callback(key):
     def _on_frame(img):
         try:
             arr = np.frombuffer(img.raw_data, dtype=np.uint8).reshape((img.height, img.width, 4))
-            ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, 50])
+            with state_lock:
+                qlty = carla_state.get("stream_quality", 80)
+            ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, qlty])
             if ok:
                 with _frames_lock:
                     _frames[key] = buf.tobytes()
@@ -180,7 +182,9 @@ def ensure_stream_camera(client, actor_id=None):
                     if sel is None:
                         cam.set_transform(spectator.get_transform())
                     arr = np.frombuffer(img.raw_data, dtype=np.uint8).reshape((img.height, img.width, 4))
-                    ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, 50])
+                    with state_lock:
+                        qlty = carla_state.get("stream_quality", 80)
+                    ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, qlty])
                     if ok:
                         with _frames_lock:
                             _frames[None] = buf.tobytes()
@@ -214,6 +218,29 @@ def get_all_cameras(world):
             "pitch":        round(t.rotation.pitch, 2),
             "yaw":          round(t.rotation.yaw,   2),
             "roll":         round(t.rotation.roll,  2),
+        })
+        
+        # Safely extract camera attributes (width, height, fov)
+        cam = cameras[-1]
+        width, height, fov = 1280, 720, 90.0
+        attrs = getattr(actor, 'attributes', [])
+        
+        if isinstance(attrs, dict):
+            width = int(attrs.get("image_size_x", width))
+            height = int(attrs.get("image_size_y", height))
+            fov = float(attrs.get("fov", fov))
+        else:
+            for a in attrs:
+                try:
+                    if getattr(a, 'name', None) == "image_size_x": width = int(a.value)
+                    elif getattr(a, 'name', None) == "image_size_y": height = int(a.value)
+                    elif getattr(a, 'name', None) == "fov": fov = float(a.value)
+                except (ValueError, TypeError, AttributeError): continue
+                
+        cam.update({"width": width, "height": height, "fov": fov})
+        
+        cam.update({
+            "parent_id":    actor.parent.id if actor.parent else None,
             "is_streaming": (actor.id == sid),
             "has_feed":     (actor.id in _listener_actors),
         })

@@ -312,6 +312,7 @@ async function initHistory() {
       }
       serverLocations = res.locations || {};
       renderSavedLocations();
+      if (res.camera_setups) renderSavedSetups(res.camera_setups);
       addLog(`History loaded — ${hosts.length} host(s), ${Object.keys(serverLocations).length} location(s)`, 'info');
     } else {
       addLog('Failed to load history: ' + (res.error || 'unknown'), 'warn');
@@ -334,6 +335,13 @@ function renderSavedLocations() {
     Object.keys(serverLocations).map(k => `<option value="${k}">${k}</option>`).join('');
   if (sel) sel.innerHTML = optStr;
   if (camSel) camSel.innerHTML = optStr;
+}
+
+function renderSavedSetups(setups) {
+  const sel = document.getElementById('camSavedSetups');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Load Camera Setup --</option>' +
+    setups.map(s => `<option value="${s.name}">${s.name} (${s.config.length} cams)</option>`).join('');
 }
 
 async function saveSpectatorPosition() {
@@ -518,6 +526,13 @@ async function refreshStatus() {
   document.getElementById('statSensors').textContent = data.sensor_count;
 
   if (data.spectator) updateSpectatorDisplay(data.spectator);
+  
+  // Sync control toggle
+  const ctrlRes = await api('/control/status');
+  if (ctrlRes.success) {
+    const cb = document.getElementById('controlToggle');
+    if (cb) cb.checked = ctrlRes.enabled;
+  }
 
   const tbody = document.getElementById('actorTableBody');
   if (!data.actors || data.actors.length === 0) {
@@ -937,11 +952,20 @@ async function setStreamResolution() {
   const parts = document.getElementById('liveStreamRes').value.split('x');
   const w = parseInt(parts[0]);
   const h = parseInt(parts[1]);
-  toast(`Setting resolution to ${w}x${h}...`);
-  const res = await api('/camera/set_stream_resolution', 'POST', { width: w, height: h });
+  const qStr = document.getElementById('liveStreamQual').value;
+  const q = parseInt(qStr || 80);
+  
+  toast(`Setting resolution to ${w}x${h} (${q}%)...`);
+  const res = await api('/camera/set_stream_resolution', 'POST', { width: w, height: h, quality: q });
   if (res.success) {
-    toast(`Resolution set to ${w}x${h}`, 'ok');
-    addLog(`Stream resolution updated to ${w}x${h}`, 'ok');
+    toast(`Resolution set to ${w}x${h} (${q}%)`, 'ok');
+    addLog(`Stream config updated: ${w}x${h} / Q${q}%`, 'ok');
+    
+    // Refresh feed to apply new resolution immediately if streaming
+    const img = document.getElementById('liveStream');
+    if (img && img.style.display !== 'none') {
+       startStream();
+    }
   } else {
     toast(res.error, 'err');
   }
@@ -1303,9 +1327,50 @@ async function camSavePosition() {
   } else toast(res.error, 'err');
 }
 
+async function toggleControl(enabled) {
+  const res = await api('/control/set', 'POST', { enabled });
+  if (res.success) {
+    toast(`Vehicle control ${enabled ? 'ENABLED' : 'DISABLED'}`, enabled ? 'ok' : 'warn');
+    addLog(`System: Vehicle control ${enabled ? 'unlocked' : 'locked'}.`, enabled ? 'info' : 'warn');
+  } else {
+    toast('Error toggling control: ' + res.error, 'err');
+  }
+}
+
 async function spawnNewCamera() {
   // Deprecated in favor of spawnType, but kept for compatibility if needed.
   spawnType('rgb');
+}
+
+async function saveCameraSetup() {
+  const name = prompt('Enter a name for this camera setup (all current cameras will be saved):', 'Setup ' + new Date().toLocaleTimeString());
+  if (!name) return;
+
+  toast(`Saving camera setup "${name}"...`);
+  const res = await api('/camera/save_setup', 'POST', { name });
+  if (res.success) {
+    toast(`Saved setup: ${name} (${res.count} cameras)`, 'ok');
+    addLog(`Camera setup "${name}" saved with ${res.count} cameras.`, 'ok');
+    // Refresh history to update the dropdown
+    const h = await api('/camera/setups');
+    if (h.success) renderSavedSetups(h.setups);
+  } else {
+    toast('Save failed: ' + res.error, 'err');
+  }
+}
+
+async function loadCameraSetup(name) {
+  if (!name) return;
+  toast(`Loading camera setup "${name}"...`, 'info', 5000);
+  const res = await api('/camera/load_setup', 'POST', { name });
+  if (res.success) {
+    toast(`Setup "${name}" loaded: ${res.spawned} cameras spawned`, 'ok');
+    addLog(`Camera setup "${name}" loaded. Spawned ${res.spawned} sensors.`, 'ok');
+    document.getElementById('camSavedSetups').value = '';
+    refreshCameras();
+  } else {
+    toast('Load failed: ' + res.error, 'err');
+  }
 }
 
 // ── Init ───────────────────────────────────────────────────────

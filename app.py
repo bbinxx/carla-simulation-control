@@ -1,47 +1,65 @@
-# d:\DEV\CodeBase\MAIN_PRO\AI_TRAFFIC\CARLA_CONTROL\app.py
-from flask import Flask
+"""
+app.py — CARLA Control Panel application factory
+"""
+import os
 import logging
+from flask import Flask
 
-from core.database import init_db
-from core.background import start_background_tasks
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
-logging.getLogger('werkzeug').setLevel(logging.WARNING)  # suppress per-request logs
-logger = logging.getLogger(__name__)
+def create_app() -> Flask:
+    app = Flask(__name__)
 
-app = Flask(__name__)
-app.secret_key = "carla_control_secret"
+    # Secret key — set CARLA_SECRET_KEY env var in production
+    app.secret_key = os.environ.get("CARLA_SECRET_KEY", "carla_control_dev_secret")
 
-# Initialize Data
-init_db()
+    # Logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)  # suppress request logs
+    app.logger.setLevel(logging.INFO)
 
-# Start Simulation Threads (Simulation Tick & Debug BBoxes)
-start_background_tasks()
+    # Database
+    from config.db import init_db
+    init_db()
 
-# Register Blueprints
-from routes.main import blueprint as bp_main
-from routes.history import blueprint as bp_history
-from routes.spectator import blueprint as bp_spectator
-from routes.weather import blueprint as bp_weather
-from routes.traffic import blueprint as bp_traffic
-from routes.environment import blueprint as bp_environment
-from routes.blueprints_api import blueprint as bp_blueprints
-from routes.spawner import blueprint as bp_spawner
-from routes.destroy import blueprint as bp_destroy
-from routes.lane import blueprint as bp_lane
-from routes.camera import blueprint as bp_camera
+    # Background threads
+    from threads.debug_bboxes import start as start_bboxes
+    start_bboxes()
 
-app.register_blueprint(bp_main)
-app.register_blueprint(bp_history)
-app.register_blueprint(bp_spectator)
-app.register_blueprint(bp_weather)
-app.register_blueprint(bp_traffic)
-app.register_blueprint(bp_environment)
-app.register_blueprint(bp_blueprints)
-app.register_blueprint(bp_spawner)
-app.register_blueprint(bp_destroy)
-app.register_blueprint(bp_lane)
-app.register_blueprint(bp_camera)
+    # NOTE: simulation_loop (world.tick) kept in core/background.py for now;
+    # it requires synchronous mode and is separate from the bbox overlay.
+    from core.background import start_background_tasks
+    start_background_tasks()
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Blueprints
+    from routes.main            import blueprint as bp_main
+    from routes.connection      import blueprint as bp_connection
+    from routes.history         import blueprint as bp_history
+    from routes.spectator       import blueprint as bp_spectator
+    from routes.weather         import blueprint as bp_weather
+    from routes.traffic         import blueprint as bp_traffic
+    from routes.environment     import blueprint as bp_environment
+    from routes.blueprints_api  import blueprint as bp_blueprints
+    from routes.spawner         import blueprint as bp_spawner
+    from routes.destroy         import blueprint as bp_destroy
+    from routes.lane            import blueprint as bp_lane
+    from routes.camera          import blueprint as bp_camera
+
+    for bp in [
+        bp_main, bp_connection, bp_history, bp_spectator,
+        bp_weather, bp_traffic, bp_environment,
+        bp_blueprints, bp_spawner, bp_destroy,
+        bp_lane, bp_camera,
+    ]:
+        app.register_blueprint(bp)
+
+    app.logger.info("CARLA Control Panel ready")
+    return app
+
+
+app = create_app()
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, threaded=True)
