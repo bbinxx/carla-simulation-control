@@ -2,6 +2,7 @@
 import logging
 import carla
 import random
+import time
 from config.state import carla_state, state_lock
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,35 @@ def configure_tm(actor, profile_name="normal"):
     tm.ignore_lights_percentage(actor, 0)
     tm.ignore_signs_percentage(actor, 0)
 
+
+# --- Blueprint & Filtering ---
+
+def list_blueprints(world, filter_str="*"):
+    """Returns sorted list of blueprint IDs matching the filter."""
+    return sorted([bp.id for bp in world.get_blueprint_library().filter(filter_str)])
+
+
+def list_emergency_blueprints(world):
+    """Returns sorted list of emergency vehicle blueprint IDs."""
+    return sorted([
+        bp.id for bp in world.get_blueprint_library().filter("vehicle.*")
+        if any(kw in bp.id.lower() for kw in ["police", "ambulance", "firetruck"])
+    ])
+
+
 # --- Spawning Logic ---
+
+def try_spawn_actor_with_retries(world, bp, spawn_points, max_tries=5):
+    """
+    Attempt to spawn actor at up to max_tries spawn points.
+    Brief pause between retries avoids flooding CARLA with rapid-fire calls.
+    """
+    for sp in spawn_points[:max_tries]:
+        actor = world.try_spawn_actor(bp, sp)
+        if actor:
+            return actor
+        time.sleep(0.05)
+    return None
 
 def spawn_vehicle(world, bp_id="vehicle.tesla.model3", behavior="normal", transform=None):
     bpl = world.get_blueprint_library()

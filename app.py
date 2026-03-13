@@ -41,17 +41,14 @@ def create_app() -> Flask:
     from routes.weather         import blueprint as bp_weather
     from routes.traffic         import blueprint as bp_traffic
     from routes.environment     import blueprint as bp_environment
-    from routes.blueprints_api  import blueprint as bp_blueprints
-    from routes.spawner         import blueprint as bp_spawner
-    from routes.destroy         import blueprint as bp_destroy
+    from routes.vehicles        import blueprint as bp_vehicles
     from routes.lane            import blueprint as bp_lane
     from routes.camera          import blueprint as bp_camera
 
     for bp in [
         bp_main, bp_connection, bp_history, bp_spectator,
         bp_weather, bp_traffic, bp_environment,
-        bp_blueprints, bp_spawner, bp_destroy,
-        bp_lane, bp_camera,
+        bp_vehicles, bp_lane, bp_camera,
     ]:
         app.register_blueprint(bp)
 

@@ -1,1 +1,0 @@
-# CARLA Control root package
