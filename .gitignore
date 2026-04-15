@@ -47,3 +47,20 @@ history.db
 *.swo
 .DS_Store
 PythonAPI
+
+# Tooling and environment files
+.python-version
+.envrc
+.env.local
+.env
+local_settings.py
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Test and coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/

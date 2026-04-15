@@ -3,8 +3,14 @@
 // ═══════════════════════════════════════════════════════════════
 
 let serverLocations = {};
+let currentSpectator = null;
+let joystickActive = false;
+let joystickVector = { x: 0, y: 0 };
+let joystickInterval = null;
+const joystickMaxRadius = 44;
 
 function updateSpectatorDisplay(s) {
+  currentSpectator = { ...s };
   document.getElementById('sX').textContent     = s.x;
   document.getElementById('sY').textContent     = s.y;
   document.getElementById('sZ').textContent     = s.z;
@@ -36,12 +42,195 @@ async function moveSpectator() {
   toast('Moving camera...');
   const data = await api('/spectator/set', 'POST', d);
   if (data.success) {
+    currentSpectator = d;
+    syncSpectatorInputs(d);
     toast(`Camera moved to (${d.x}, ${d.y}, ${d.z})`, 'ok');
     addLog(`Spectator -> (${d.x}, ${d.y}, ${d.z})`, 'ok');
   } else {
     toast('Move failed: ' + data.error, 'err');
   }
 }
+
+async function moveSpectatorRelative(delta = {}) {
+  let data = currentSpectator;
+  if (!data) {
+    const res = await api('/spectator/get');
+    if (!res.success) {
+      toast('Unable to read spectator position: ' + res.error, 'err');
+      return;
+    }
+    data = res;
+  }
+
+  const next = {
+    x:     Number(data.x) + (delta.dx || 0),
+    y:     Number(data.y) + (delta.dy || 0),
+    z:     Number(data.z) + (delta.dz || 0),
+    pitch: Number(data.pitch) + (delta.dp || 0),
+    yaw:   Number(data.yaw) + (delta.dyaw || 0),
+    roll:  Number(data.roll) + (delta.dr || 0),
+  };
+
+  const res = await api('/spectator/set', 'POST', next);
+  if (res.success) {
+    currentSpectator = next;
+    updateSpectatorDisplay(next);
+    syncSpectatorInputs(next);
+  } else {
+    toast('Spectator move failed: ' + res.error, 'err');
+  }
+}
+
+function syncSpectatorInputs(s) {
+  if (!s) return;
+  const mapping = {
+    specX: s.x,
+    specY: s.y,
+    specZ: s.z,
+    specPitch: s.pitch,
+    specYaw: s.yaw,
+    specRoll: s.roll,
+  };
+
+  Object.entries(mapping).forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = Number(value).toFixed(2);
+  });
+}
+
+function spectatorKeyboardControl(event) {
+  if (!event.key || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName)) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+  const isPageUp = event.key === 'PageUp';
+  const isPageDown = event.key === 'PageDown';
+  const step = event.shiftKey ? 5 : 2;
+  const zStep = event.shiftKey ? 2 : 1;
+  const rotStep = event.shiftKey ? 15 : 10;
+
+  let delta = null;
+
+  switch (key) {
+    case 'arrowup':
+    case 'w':
+      delta = { dy: step };
+      break;
+    case 'arrowdown':
+    case 's':
+      delta = { dy: -step };
+      break;
+    case 'arrowleft':
+    case 'a':
+      delta = { dx: -step };
+      break;
+    case 'arrowright':
+    case 'd':
+      delta = { dx: step };
+      break;
+    case 'q':
+      delta = { dyaw: -rotStep };
+      break;
+    case 'e':
+      delta = { dyaw: rotStep };
+      break;
+    case 'i':
+      delta = { dp: -rotStep };
+      break;
+    case 'k':
+      delta = { dp: rotStep };
+      break;
+    case 'r':
+      fetchSpectator();
+      return;
+    default:
+      break;
+  }
+
+  if (isPageUp) {
+    delta = { dz: zStep };
+  }
+  if (isPageDown) {
+    delta = { dz: -zStep };
+  }
+
+  if (delta) {
+    event.preventDefault();
+    moveSpectatorRelative(delta);
+  }
+}
+
+function initSpectatorJoystick() {
+  const base = document.getElementById('joystickBase');
+  const thumb = document.getElementById('joystickThumb');
+  const status = document.getElementById('joystickState');
+  if (!base || !thumb || !status) return;
+
+  const updateStatus = () => {
+    const x = joystickVector.x.toFixed(2);
+    const y = joystickVector.y.toFixed(2);
+    status.textContent = joystickActive ? `Pan ${x}, ${y}` : 'Drag to pan';
+  };
+
+  const resetJoystick = () => {
+    joystickActive = false;
+    joystickVector = { x: 0, y: 0 };
+    thumb.style.transform = 'translate(-50%, -50%)';
+    if (status) status.textContent = 'Drag to pan';
+    if (joystickInterval) {
+      clearInterval(joystickInterval);
+      joystickInterval = null;
+    }
+  };
+
+  const applyJoystickMove = () => {
+    if (!joystickActive) return;
+    const magnitude = Math.hypot(joystickVector.x, joystickVector.y);
+    if (magnitude < 0.15) return;
+    const scale = 2.5 * magnitude;
+    moveSpectatorRelative({
+      dx: joystickVector.x * scale,
+      dy: -joystickVector.y * scale,
+    });
+  };
+
+  const handlePointer = event => {
+    if (!joystickActive && event.type !== 'pointerdown') return;
+    if (event.type === 'pointerdown') {
+      event.preventDefault();
+      base.setPointerCapture(event.pointerId);
+      joystickActive = true;
+      updateStatus();
+      joystickInterval = setInterval(applyJoystickMove, 120);
+    }
+
+    if (event.type === 'pointermove' && joystickActive) {
+      const rect = base.getBoundingClientRect();
+      const x = event.clientX - (rect.left + rect.width / 2);
+      const y = event.clientY - (rect.top + rect.height / 2);
+      const clampedX = Math.max(-joystickMaxRadius, Math.min(joystickMaxRadius, x));
+      const clampedY = Math.max(-joystickMaxRadius, Math.min(joystickMaxRadius, y));
+      joystickVector.x = clampedX / joystickMaxRadius;
+      joystickVector.y = clampedY / joystickMaxRadius;
+      thumb.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
+      updateStatus();
+    }
+
+    if (event.type === 'pointerup' || event.type === 'pointercancel' || event.type === 'pointerleave') {
+      resetJoystick();
+    }
+  };
+
+  base.addEventListener('pointerdown', handlePointer);
+  base.addEventListener('pointermove', handlePointer);
+  base.addEventListener('pointerup', handlePointer);
+  base.addEventListener('pointercancel', handlePointer);
+  base.addEventListener('pointerleave', handlePointer);
+}
+
+document.addEventListener('keydown', spectatorKeyboardControl);
+initSpectatorJoystick();
 
 // ── History / saved locations ──────────────────────────────────
 
