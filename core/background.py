@@ -12,7 +12,7 @@ import logging
 import carla
 
 from config.state import carla_state, state_lock
-from core.vehicles import precision_red_light_stop
+from core.vehicles import precision_red_light_stop, handle_green_light_resume
 from utils.cache import world_cache
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,7 @@ def simulation_loop():
 
                 if tick_count % 10 == 0:
                     precision_red_light_stop(world)
+                    handle_green_light_resume(world)
 
             except carla.client.TimeoutException:
                 logger.warning("CARLA tick timeout — simulator is slow or network is saturated")

@@ -74,7 +74,7 @@ def start_stream(client):
         with state_lock:
             fw = carla_state.get("stream_width",  640)
             fh = carla_state.get("stream_height", 360)
-            fq = carla_state.get("stream_quality", 80)
+            fq = carla_state.get("stream_quality", 40)
 
         bp.set_attribute("image_size_x", str(fw))
         bp.set_attribute("image_size_y", str(fh))
@@ -93,7 +93,7 @@ def start_stream(client):
                 arr = _np.frombuffer(img.raw_data, dtype=_np.uint8)
                 arr = arr.reshape((img.height, img.width, 4))
                 with _lock:
-                    q = _state.get("stream_quality", 80)
+                    q = _state.get("stream_quality", 40)
                 ok, buf = _cv2.imencode(".jpg", arr[:, :, :3],
                                         [_cv2.IMWRITE_JPEG_QUALITY, q])
                 if ok:

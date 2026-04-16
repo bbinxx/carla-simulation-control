@@ -67,7 +67,7 @@ def set_stream_resolution():
         d = request.json or {}
         w = int(d.get("width", 640))
         h = int(d.get("height", 360))
-        q = int(d.get("quality", 80))
+        q = int(d.get("quality", 30))
         with state_lock:
             carla_state["stream_width"] = w
             carla_state["stream_height"] = h

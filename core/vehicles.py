@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 # --- Behaviour Configuration ---
 DRIVER_PROFILES = {
     "calm":       {"speed_diff": 5,  "distance": 3.0, "lane_change": 0},
-    "normal":     {"speed_diff": 0,  "distance": 2.0, "lane_change": 10},
-    "aggressive": {"speed_diff": -10, "distance": 1.5, "lane_change": 30},
+    "normal":     {"speed_diff": 0,  "distance": 2.2, "lane_change": 5},
+    "aggressive": {"speed_diff": -5, "distance": 1.5, "lane_change": 10},
 }
 
 def get_tm():
@@ -21,12 +21,26 @@ def sync_global_tm(world):
     tm = get_tm()
     if not tm: return False
     tm.set_global_distance_to_leading_vehicle(2.5)
-    tm.set_synchronous_mode(True)
+    tm.global_percentage_speed_difference(0.0)
     tm.set_hybrid_physics_mode(True)
     tm.set_hybrid_physics_radius(70.0)   # smooth physics-to-kinematic transition at 70 m
-    tm.global_percentage_speed_difference(0.0)
     tm.set_random_device_seed(42)         # deterministic TM decisions = smoother replanning
     return True
+
+
+def enforce_traffic_rules(world, profile_name="normal"):
+    tm = get_tm()
+    if not tm:
+        return 0
+    applied = 0
+    for actor in world.get_actors().filter("vehicle.*"):
+        try:
+            configure_tm(actor, profile_name)
+            applied += 1
+        except Exception:
+            continue
+    return applied
+
 
 def configure_tm(actor, profile_name="normal"):
     tm = get_tm()
@@ -39,11 +53,12 @@ def configure_tm(actor, profile_name="normal"):
     tm.distance_to_leading_vehicle(actor, p["distance"])
     tm.vehicle_percentage_speed_difference(actor, p["speed_diff"])
     tm.auto_lane_change(actor, True)
-    tm.keep_right_rule_percentage(actor, 80)      # consistent lane discipline
+    tm.keep_right_rule_percentage(actor, 100)     # consistent lane discipline
     for side in ["left", "right"]:
         getattr(tm, f"random_{side}_lanechange_percentage")(actor, p["lane_change"])
     tm.ignore_lights_percentage(actor, 0)
     tm.ignore_signs_percentage(actor, 0)
+    tm.ignore_road_signs_percentage(actor, 0) if hasattr(tm, 'ignore_road_signs_percentage') else None
 
 
 # --- Blueprint & Filtering ---
@@ -75,14 +90,26 @@ def try_spawn_actor_with_retries(world, bp, spawn_points, max_tries=5):
         time.sleep(0.05)
     return None
 
+
+def get_ordered_spawn_points(world, origin=None):
+    spawn_points = list(world.get_map().get_spawn_points())
+    if origin:
+        spawn_points.sort(key=lambda sp: sp.location.distance(origin))
+    return spawn_points
+
+
 def spawn_vehicle(world, bp_id="vehicle.tesla.model3", behavior="normal", transform=None):
     bpl = world.get_blueprint_library()
     bp = bpl.find(bp_id)
     if not bp: return None
     
     if not transform:
-        spawn_points = world.get_map().get_spawn_points()
-        random.shuffle(spawn_points)
+        origin = None
+        try:
+            origin = world.get_spectator().get_location()
+        except Exception:
+            origin = None
+        spawn_points = get_ordered_spawn_points(world, origin)
         for sp in spawn_points[:20]:
             actor = world.try_spawn_actor(bp, sp)
             if actor:
@@ -105,14 +132,17 @@ def spawn_npc_batch(world, count=10):
         logger.error("Client not found in state. Falling back to sequential spawn.")
         return sum(1 for _ in range(count) if spawn_vehicle(world))
 
-    vehicle_bps = world.get_blueprint_library().filter("vehicle.*")
-    spawn_points = world.get_map().get_spawn_points()
-    random.shuffle(spawn_points)
+    vehicle_bps = [bp for bp in world.get_blueprint_library().filter("vehicle.*")
+                   if not any(tag in bp.id.lower() for tag in ["motorcycle", "trailer", "ambulance", "police", "firetruck", "tanker", "bus", "rv"])]
+    if not vehicle_bps:
+        vehicle_bps = list(world.get_blueprint_library().filter("vehicle.*"))
+
+    spawn_points = get_ordered_spawn_points(world)
 
     # Chain SetAutoPilot so vehicles start moving immediately after spawn (no lag loop)
     batch = []
     for i in range(min(count, len(spawn_points))):
-        bp = random.choice(vehicle_bps)
+        bp = vehicle_bps[i % len(vehicle_bps)]
         batch.append(
             carla.command.SpawnActor(bp, spawn_points[i])
             .then(carla.command.SetAutopilot(carla.command.FutureActor, True, tm_port))
@@ -123,8 +153,9 @@ def spawn_npc_batch(world, count=10):
 
     # Apply per-vehicle TM profile in one pass (actors already exist, no extra tick needed)
     actors = world.get_actors(spawned_ids)
-    for actor in actors:
-        profile = random.choice(list(DRIVER_PROFILES.keys()))
+    profile_names = list(DRIVER_PROFILES.keys())
+    for i, actor in enumerate(actors):
+        profile = profile_names[i % len(profile_names)]
         p = DRIVER_PROFILES[profile]
         tm = get_tm()
         if tm:
@@ -228,6 +259,45 @@ def precision_red_light_stop(world):
                     veh_loc.z,
                 )
                 v.set_transform(carla.Transform(snap_loc, v.get_transform().rotation))
+    except Exception:
+        pass
+
+def handle_green_light_resume(world):
+    """
+    Call once per tick. Gives vehicles a small nudge forward when traffic light turns green
+    to help them resume movement if they were snapped to the stop line.
+    """
+    try:
+        for v in world.get_actors().filter("vehicle.*"):
+            tl_state = v.get_traffic_light_state()
+            if tl_state != carla.TrafficLightState.Green:
+                continue
+
+            vel = v.get_velocity()
+            speed = (vel.x**2 + vel.y**2 + vel.z**2) ** 0.5
+
+            # If vehicle is stopped or moving very slowly at a green light
+            if speed < 1.0:
+                # Check if we're at a stop line
+                stop_wp = _stop_line_waypoint(v)
+                if not stop_wp:
+                    continue
+
+                veh_loc = v.get_location()
+                dist = veh_loc.distance(stop_wp.transform.location)
+
+                # If very close to stop line, give a small forward nudge
+                if dist < 2.0:
+                    fwd = v.get_transform().get_forward_vector()
+                    nudge_loc = carla.Location(
+                        veh_loc.x + fwd.x * 0.5,  # 0.5m forward nudge
+                        veh_loc.y + fwd.y * 0.5,
+                        veh_loc.z
+                    )
+                    v.set_transform(carla.Transform(nudge_loc, v.get_transform().rotation))
+
+                    # Also apply a small velocity to get moving
+                    v.set_velocity(carla.Vector3D(fwd.x * 2.0, fwd.y * 2.0, vel.z))
     except Exception:
         pass
 

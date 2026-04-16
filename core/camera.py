@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 _frames      = {}
 _frame_counters = {}
 _frames_lock = threading.Lock()
+stream_condition = threading.Condition()
 
 # ── Active Listeners ──────────────────────────────────────────────────────────
 # { actor_id (int) : actor_object }  — holds strong refs so GC won't drop them
@@ -101,12 +102,14 @@ def _make_callback(key):
         try:
             arr = np.frombuffer(img.raw_data, dtype=np.uint8).reshape((img.height, img.width, 4))
             with state_lock:
-                qlty = carla_state.get("stream_quality", 80)
+                qlty = carla_state.get("stream_quality", 30)
             ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, qlty])
             if ok:
                 with _frames_lock:
                     _frames[key] = buf.tobytes()
                     _frame_counters[key] = _frame_counters.get(key, 0) + 1
+                with stream_condition:
+                    stream_condition.notify_all()
         except Exception as exc:
             logger.warning(f"Frame encode error (id={key}): {exc}")
     return _on_frame
@@ -183,12 +186,14 @@ def ensure_stream_camera(client, actor_id=None):
                         cam.set_transform(spectator.get_transform())
                     arr = np.frombuffer(img.raw_data, dtype=np.uint8).reshape((img.height, img.width, 4))
                     with state_lock:
-                        qlty = carla_state.get("stream_quality", 80)
+                        qlty = carla_state.get("stream_quality", 30)
                     ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, qlty])
                     if ok:
                         with _frames_lock:
                             _frames[None] = buf.tobytes()
                             _frame_counters[None] = _frame_counters.get(None, 0) + 1
+                        with stream_condition:
+                            stream_condition.notify_all()
                 except Exception:
                     pass
 

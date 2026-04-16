@@ -50,8 +50,6 @@ def spawn_v():
         return jsonify({"success": False, "error": f"Blueprint not found: {bp_id}"}), 404
 
     spawn_points = world.get_map().get_spawn_points()
-    random.shuffle(spawn_points)
-    
     actor = try_spawn_actor_with_retries(world, bp, spawn_points)
     if actor:
         configure_tm(actor, d.get("behavior", "normal"))
@@ -77,15 +75,13 @@ def spawn_e():
     if not emerg_ids:
         return jsonify({"success": False, "error": "No emergency vehicle blueprints found"})
 
-    bp_id = d.get("blueprint") or random.choice(emerg_ids)
+    bp_id = d.get("blueprint") or emerg_ids[0]
     try:
         bp = world.get_blueprint_library().find(bp_id)
     except Exception:
-        bp = world.get_blueprint_library().find(random.choice(emerg_ids))
+        bp = world.get_blueprint_library().find(emerg_ids[0])
 
     spawn_points = world.get_map().get_spawn_points()
-    random.shuffle(spawn_points)
-    
     actor = try_spawn_actor_with_retries(world, bp, spawn_points)
     if actor:
         configure_tm(actor, "aggressive")

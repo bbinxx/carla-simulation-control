@@ -5,7 +5,10 @@ import time
 from config.state import carla_state, state_lock
 from utils.helpers import get_world, ensure_control, require_carla
 from utils.cache import world_cache
-from core.camera import get_stream_frame, ensure_stream_camera, stop_stream_camera, take_screenshot
+from core.camera import (
+    get_stream_frame, ensure_stream_camera, stop_stream_camera, 
+    take_screenshot, stream_condition
+)
 
 blueprint = Blueprint("main", __name__)
 logger    = logging.getLogger(__name__)
@@ -83,13 +86,14 @@ def _gen_frames(actor_id):
     """MJPEG generator – ensure_stream_camera was already called at request time."""
     last_count = -1
     while True:
+        with stream_condition:
+            # Wait for a new frame event (timeout acts as a fallback to not block forever)
+            stream_condition.wait(timeout=1.0)
+            
         frame, count = get_stream_frame(actor_id)
         if frame and count != last_count:
             yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
             last_count = count
-            time.sleep(0.01)
-        else:
-            time.sleep(0.02)
 
 
 @blueprint.route("/debug/streams")

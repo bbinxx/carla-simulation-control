@@ -12,6 +12,7 @@ from config.state import carla_state, state_lock, DEFAULT_TM_PORT
 from config.db import get_db
 from utils.cache import world_cache
 from utils.helpers import get_actors_info, get_spectator_transform, format_weather
+from core.vehicles import sync_global_tm, enforce_traffic_rules
 from threads.stream import stop_stream
 
 blueprint = Blueprint("connection", __name__)
@@ -54,6 +55,8 @@ def connect():
 
         # Prime the cache immediately — all subsequent get_world() calls are free
         world_cache.set_world(world)
+        sync_global_tm(world)
+        enforce_traffic_rules(world)
 
         with state_lock:
             carla_state.update({
