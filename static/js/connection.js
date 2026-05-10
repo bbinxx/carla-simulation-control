@@ -5,6 +5,45 @@
 let pollInterval    = null;
 let _actorsTabOpen  = false;   // true when the Actors tab is visible
 
+// ── Socket.IO Status Sync ──────────────────────────────────────
+if (typeof socket !== 'undefined' && socket) {
+  socket.on('status_update', (data) => {
+    if (!data.connected) {
+      if (document.getElementById('connectBtn').style.display === 'none') {
+        setConnected(false);
+        toast('Lost connection to CARLA (Socket)', 'err');
+        addLog('Connection lost (Socket reported)', 'err');
+      }
+      return;
+    }
+
+    // Sync UI if server reports connected but UI shows disconnected
+    if (document.getElementById('connectBtn').style.display !== 'none') {
+      setConnected(true, data);
+    }
+
+    // Update global stats
+    document.getElementById('infoMap').textContent      = data.map;
+    document.getElementById('infoActors').textContent   = data.actor_count;
+    document.getElementById('statActors').textContent   = data.actor_count;
+    document.getElementById('statVehicles').textContent = data.vehicle_count;
+    document.getElementById('statWalkers').textContent  = data.walker_count;
+    document.getElementById('statSensors').textContent  = data.sensor_count;
+
+    if (data.spectator) updateSpectatorDisplay(data.spectator);
+    if (data.weather && typeof buildWeatherSliders === 'function') {
+      buildWeatherSliders(data.weather);
+    }
+
+    // Heavy actor table — only when the actors tab is open
+    if (_actorsTabOpen) {
+      api('/api/status/actors').then(full => {
+        renderActorTable((full && full.actors) || []);
+      });
+    }
+  });
+}
+
 // ── Connected state UI ─────────────────────────────────────────
 function setConnected(state, data = {}) {
   const dot      = document.getElementById('statusDot');
@@ -81,7 +120,14 @@ async function disconnect() {
 
 function startPolling() {
   clearInterval(pollInterval);
-  pollInterval = setInterval(refreshStatus, 5000);   // 5s — reduced from 3s
+  
+  // If socket is connected, we don't need HTTP polling as server pushes status_update
+  if (typeof socket !== 'undefined' && socket && socket.connected) {
+    console.log('Socket active: HTTP polling disabled');
+    return;
+  }
+
+  pollInterval = setInterval(refreshStatus, 5000);   // 5s fallback
   refreshStatus();
 }
 

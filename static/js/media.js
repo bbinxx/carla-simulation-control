@@ -6,25 +6,58 @@
 
 let camPollInterval = null;
 
+socket.on('connect', () => {
+  console.log('Socket.IO connected');
+});
+
+socket.on('frame', (data) => {
+  // data = { id: actor_id, data: base64_jpeg }
+  const b64Data = 'data:image/jpeg;base64,' + data.data;
+  
+  // Update Live Stream window if it's matching the ID
+  const liveImg = document.getElementById('liveStream');
+  if (liveImg && liveImg.style.display !== 'none') {
+    // If it's the selected camera (data.id is null/None on server for spec)
+    if (data.id === null) {
+      liveImg.src = b64Data;
+    }
+  }
+
+  // Update Camera Manager Preview if it matches
+  const previewImg = document.getElementById('camPreviewImg');
+  const badgeId = document.getElementById('camBadgeId');
+  if (previewImg && previewImg.style.display !== 'none' && badgeId) {
+    const activeId = badgeId.textContent;
+    if (activeId === '--' && data.id === null) {
+      previewImg.src = b64Data;
+    } else if (activeId == data.id) {
+      previewImg.src = b64Data;
+    }
+  }
+});
+
 // ── Live Stream ────────────────────────────────────────────────
 
 function startStream() {
   const img = document.getElementById('liveStream');
-  img.src   = '/video_feed?' + Date.now();
   img.style.display = 'block';
-  img.onerror = () => { toast('Stream failed', 'err', 6000); stopStream(); };
+  // Join the selected camera room
+  socket.emit('join_camera', { id: null });
+  
   document.getElementById('liveStreamStatus').style.display = 'none';
   document.getElementById('streamBtn').style.display        = 'none';
   document.getElementById('streamStopBtn').style.display    = 'flex';
-  toast('Live stream started', 'ok');
-  addLog('Live stream started');
+  toast('Live stream started (Socket.IO)', 'ok');
+  addLog('Live stream started via Socket.IO');
 }
 
 function stopStream() {
-  const img       = document.getElementById('liveStream');
-  img.src         = '';
+  const img = document.getElementById('liveStream');
+  img.src = '';
   img.style.display = 'none';
-  img.onerror     = null;
+  // Leave the selected camera room
+  socket.emit('leave_camera', { id: null });
+
   document.getElementById('liveStreamStatus').style.display = 'block';
   document.getElementById('streamBtn').style.display        = 'flex';
   document.getElementById('streamStopBtn').style.display    = 'none';
@@ -171,7 +204,15 @@ function startCamPreview(id) {
   const ovr = document.getElementById('camPreviewOverlay');
   const ph  = document.getElementById('camPreviewPlaceholder');
   if (!img) return;
-  img.src = id ? `/video_feed?id=${id}` : `/video_feed`;
+
+  // Stop any previous preview room
+  if (window._activePreviewId !== undefined) {
+    socket.emit('leave_camera', { id: window._activePreviewId });
+  }
+
+  window._activePreviewId = id;
+  socket.emit('join_camera', { id: id });
+
   img.style.display = 'block';
   if (ovr) ovr.style.display = 'block';
   if (ph)  ph.style.display  = 'none';
@@ -182,6 +223,12 @@ function stopCamPreview() {
   const ovr = document.getElementById('camPreviewOverlay');
   const ph  = document.getElementById('camPreviewPlaceholder');
   if (!img) return;
+
+  if (window._activePreviewId !== undefined) {
+    socket.emit('leave_camera', { id: window._activePreviewId });
+    window._activePreviewId = undefined;
+  }
+
   img.src = '';
   img.style.display = 'none';
   if (ovr) ovr.style.display = 'none';

@@ -3,6 +3,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 // ── Toast ──────────────────────────────────────────────────────
+const socket = io();
+
 function toast(msg, type = 'info', duration = 3000) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -31,7 +33,24 @@ function clearLog() {
 }
 
 // ── Core fetch wrapper ─────────────────────────────────────────
+// ── Core fetch/socket wrapper ─────────────────────────────────
 async function api(path, method = 'GET', body = null) {
+  // If socket is available and connected, use it for the API command
+  if (typeof socket !== 'undefined' && socket && socket.connected) {
+    return new Promise((resolve) => {
+      socket.emit('api_command', { path, method, body }, (response) => {
+        if (!response || response.success === false) {
+          const msg = `Socket error on ${method} ${path}: ${response ? response.error : 'No response'}`;
+          // addLog(msg, 'err'); // Log is usually handled by caller or server
+          resolve(response || { success: false, error: 'Empty socket response' });
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  // Fallback to traditional Fetch API
   try {
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
     if (body) opts.body = JSON.stringify(body);

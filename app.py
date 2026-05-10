@@ -52,6 +52,11 @@ def create_app() -> Flask:
     ]:
         app.register_blueprint(bp)
 
+    # SocketIO
+    from config.socket import socketio
+    import routes.socket  # register handlers
+    socketio.init_app(app)
+
     app.logger.info("CARLA Control Panel ready")
     return app
 
@@ -61,5 +66,6 @@ app = create_app()
 if __name__ == "__main__":
     import webbrowser
     from threading import Timer
+    from config.socket import socketio
     Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
-    app.run(host="0.0.0.0", port=5000, threaded=True)
+    socketio.run(app, host="0.0.0.0", port=5000)

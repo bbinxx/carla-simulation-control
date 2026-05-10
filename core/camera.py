@@ -4,7 +4,9 @@ import base64
 import numpy as np
 import threading
 import logging
+import base64
 from config.state import carla_state, state_lock
+from config.socket import socketio
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +107,21 @@ def _make_callback(key):
                 qlty = carla_state.get("stream_quality", 30)
             ok, buf = cv2.imencode(".jpg", arr[:, :, :3], [cv2.IMWRITE_JPEG_QUALITY, qlty])
             if ok:
+                jpeg_bytes = buf.tobytes()
                 with _frames_lock:
-                    _frames[key] = buf.tobytes()
+                    _frames[key] = jpeg_bytes
                     _frame_counters[key] = _frame_counters.get(key, 0) + 1
+                
                 with stream_condition:
                     stream_condition.notify_all()
+
+                # Emit over Socket.IO
+                try:
+                    b64_frame = base64.b64encode(jpeg_bytes).decode('ascii')
+                    room = f"camera_{key}" if key is not None else "camera_selected"
+                    socketio.emit("frame", {"id": key, "data": b64_frame}, room=room)
+                except Exception as e:
+                    pass # Avoid crashing callback if socketio fails
         except Exception as exc:
             logger.warning(f"Frame encode error (id={key}): {exc}")
     return _on_frame

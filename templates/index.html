@@ -1995,6 +1995,7 @@
   <!-- JS modules — load order matters: api.js first (defines toast/addLog/api/saveState),
        then weather.js (defines buildWeatherSliders used in DOMContentLoaded),
        then feature modules, finally main.js (DOMContentLoaded entry point) -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="{{ url_for('static', filename='js/api.js') }}"></script>
   <script src="{{ url_for('static', filename='js/weather.js') }}"></script>
   <script src="{{ url_for('static', filename='js/connection.js') }}"></script>
