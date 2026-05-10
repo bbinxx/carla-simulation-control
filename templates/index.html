@@ -621,87 +621,6 @@
       font-size: 0.68rem;
     }
 
-    .remote-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-
-    .remote-grid .btn {
-      min-height: 34px;
-    }
-
-    .remote-panel {
-      display: grid;
-      gap: 10px;
-    }
-
-    .joystick-wrapper {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .joystick-base {
-      width: 120px;
-      height: 120px;
-      border: 1px solid var(--border-hi);
-      border-radius: 50%;
-      background: rgba(0, 212, 245, 0.05);
-      position: relative;
-      touch-action: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .joystick-base::after {
-      content: '';
-      position: absolute;
-      inset: 16px;
-      border: 1px dashed rgba(255, 255, 255, 0.08);
-      border-radius: 50%;
-    }
-
-    .joystick-thumb {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: var(--c-accent);
-      border: 1px solid rgba(255,255,255,0.2);
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      transition: transform 0.08s ease;
-      box-shadow: 0 0 0 8px rgba(0, 212, 245, 0.08);
-    }
-
-    .joystick-state {
-      font-size: 0.78rem;
-      color: var(--c-muted);
-      text-align: center;
-      max-width: 200px;
-    }
-
-    .kbd-hint {
-      background: #070910;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--c-dim);
-      font-size: 0.78rem;
-      line-height: 1.4;
-      padding: 10px;
-    }
-
-    .kbd-hint div:first-child {
-      color: var(--c-accent);
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
     .btn-primary {
       background: rgba(0, 212, 245, 0.07);
       border-color: rgba(0, 212, 245, 0.3);
@@ -1452,7 +1371,8 @@
       <div class="field" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
         <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
           <span style="font-size: 0.8rem; font-weight: 600; color: #fff;">Vehicle Control Access</span>
-          <input type="checkbox" id="controlToggle" checked onchange="toggleControl(this.checked)" style="width: 40px; height: 20px; cursor: pointer;">
+          <input type="checkbox" id="controlToggle" checked onchange="toggleControl(this.checked)"
+            style="width: 40px; height: 20px; cursor: pointer;">
         </label>
         <div style="font-size: 0.65rem; color: rgba(255,255,255,0.5); margin-top: 5px;">
           When disabled, all spawning, deletion, and traffic control operations are blocked from this panel.
@@ -1523,36 +1443,6 @@
         <div class="field"><label>Roll</label><input type="number" id="specRoll" value="0" /></div>
       </div>
       <button class="btn btn-primary btn-full" onclick="moveSpectator()">MOVE CAMERA</button>
-      <div class="sec-head">Remote Control</div>
-      <div class="remote-panel">
-        <div class="remote-grid">
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dx:-2})" title="Move left">← X-</button>
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dy:2})" title="Move forward">↑ Y+</button>
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dx:2})" title="Move right">→ X+</button>
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dy:-2})" title="Move backward">↓ Y-</button>
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dz:1})" title="Move up">Z+</button>
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dz:-1})" title="Move down">Z-</button>
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dyaw:-10})" title="Yaw left">Yaw ←</button>
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dp:-10})" title="Pitch up">Pitch ↑</button>
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dyaw:10})" title="Yaw right">Yaw →</button>
-          <button class="btn btn-cyan btn-xs" onclick="moveSpectatorRelative({dp:10})" title="Pitch down">Pitch ↓</button>
-        </div>
-        <div class="joystick-wrapper">
-          <div class="joystick-base" id="joystickBase">
-            <div class="joystick-thumb" id="joystickThumb"></div>
-          </div>
-          <div class="joystick-state" id="joystickState">Drag to pan</div>
-        </div>
-        <div class="kbd-hint">
-          <div>Keyboard controls:</div>
-          <div>W/A/S/D = pan X/Y</div>
-          <div>Arrow keys = alternate pan X/Y</div>
-          <div>PgUp / PgDn = move Z</div>
-          <div>Q / E = yaw left / right</div>
-          <div>I / K = tilt pitch up / down</div>
-          <div>R = refresh spectator</div>
-        </div>
-      </div>
       <div class="sec-head">Saved Locations</div>
       <div class="save-loc-row">
         <input type="text" id="locName" placeholder="Location name..." class="txt-input" />
@@ -1680,7 +1570,8 @@
 
             <div class="sec-head">GLOBAL CAMERA SETUPS</div>
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-               <button class="btn btn-primary btn-sm" onclick="saveCameraSetup()" style="flex: 1;">SAVE ALL AS SETUP</button>
+              <button class="btn btn-primary btn-sm" onclick="saveCameraSetup()" style="flex: 1;">SAVE ALL AS
+                SETUP</button>
             </div>
             <div class="field" style="margin: 0;">
               <select id="camSavedSetups" onchange="loadCameraSetup(this.value)" style="font-size: 0.75rem;">
