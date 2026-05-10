@@ -10,7 +10,8 @@ from core.vehicles import (
     configure_tm,
     spawn_npc_batch,
     spawn_walker_batch,
-    destroy_actors
+    destroy_actors,
+    get_ordered_spawn_points
 )
 
 blueprint = Blueprint("vehicles", __name__)
@@ -49,7 +50,11 @@ def spawn_v():
     except Exception:
         return jsonify({"success": False, "error": f"Blueprint not found: {bp_id}"}), 404
 
-    spawn_points = world.get_map().get_spawn_points()
+    try:
+        origin = world.get_spectator().get_location()
+    except Exception:
+        origin = None
+    spawn_points = get_ordered_spawn_points(world, origin)
     actor = try_spawn_actor_with_retries(world, bp, spawn_points)
     if actor:
         configure_tm(actor, d.get("behavior", "normal"))
@@ -81,7 +86,11 @@ def spawn_e():
     except Exception:
         bp = world.get_blueprint_library().find(emerg_ids[0])
 
-    spawn_points = world.get_map().get_spawn_points()
+    try:
+        origin = world.get_spectator().get_location()
+    except Exception:
+        origin = None
+    spawn_points = get_ordered_spawn_points(world, origin)
     actor = try_spawn_actor_with_retries(world, bp, spawn_points)
     if actor:
         configure_tm(actor, "aggressive")

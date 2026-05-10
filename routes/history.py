@@ -93,3 +93,17 @@ def save_location():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
+
+
+@blueprint.route("/history/location", methods=["DELETE"])
+def delete_location():
+    try:
+        d = request.json or {}
+        name = d.get("name")
+        if not name:
+            return jsonify({"success": False, "error": "No name provided"})
+        with get_db() as conn:
+            conn.execute("DELETE FROM locations WHERE name = ?", (name,))
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})

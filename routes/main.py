@@ -6,8 +6,8 @@ from config.state import carla_state, state_lock
 from utils.helpers import get_world, ensure_control, require_carla
 from utils.cache import world_cache
 from core.camera import (
-    get_stream_frame, ensure_stream_camera, stop_stream_camera, 
-    take_screenshot, stream_condition
+    get_stream_frame, ensure_stream_camera, stop_stream_camera,
+    take_screenshot, get_camera_status, stream_condition
 )
 
 blueprint = Blueprint("main", __name__)
@@ -85,26 +85,33 @@ def screenshot():
 def _gen_frames(actor_id):
     """MJPEG generator – ensure_stream_camera was already called at request time."""
     last_count = -1
+    missed = 0  # track consecutive timeouts for dead-connection detection
     while True:
-        with stream_condition:
-            # Wait for a new frame event (timeout acts as a fallback to not block forever)
-            stream_condition.wait(timeout=1.0)
-            
-        frame, count = get_stream_frame(actor_id)
-        if frame and count != last_count:
-            yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
-            last_count = count
+        try:
+            with stream_condition:
+                # Wait for a new frame event (1 s timeout as heartbeat)
+                stream_condition.wait(timeout=1.0)
+
+            frame, count = get_stream_frame(actor_id)
+            if frame and count != last_count:
+                yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
+                last_count = count
+                missed = 0
+            else:
+                missed += 1
+                if missed > 30:   # ~30 s with no frames → give up
+                    logger.warning(f"MJPEG feed for id={actor_id} timed out, closing.")
+                    return
+        except GeneratorExit:
+            return
+        except Exception as exc:
+            logger.warning(f"MJPEG gen_frames error: {exc}")
+            return
 
 
 @blueprint.route("/debug/streams")
 def debug_streams():
-    from core.camera import _frames, _listener_actors, _selected_id
-    return jsonify({
-        "selected_id": _selected_id,
-        "listeners":   sorted(list(_listener_actors.keys())),
-        "frame_ids":   sorted([str(k) for k in _frames.keys()]),
-        "frame_sizes": {str(k): len(v) for k, v in _frames.items()},
-    })
+    return jsonify(get_camera_status())
 
 
 @blueprint.route("/video_feed")

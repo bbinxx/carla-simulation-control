@@ -84,6 +84,11 @@ def init_db():
             config TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS camera_metadata (
+            actor_id INTEGER PRIMARY KEY,
+            name TEXT
+        );
         """)
 
     logger.info("Database initialized")

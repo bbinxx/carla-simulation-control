@@ -137,7 +137,11 @@ def spawn_npc_batch(world, count=10):
     if not vehicle_bps:
         vehicle_bps = list(world.get_blueprint_library().filter("vehicle.*"))
 
-    spawn_points = get_ordered_spawn_points(world)
+    try:
+        origin = world.get_spectator().get_location()
+    except Exception:
+        origin = None
+    spawn_points = get_ordered_spawn_points(world, origin)
 
     # Chain SetAutoPilot so vehicles start moving immediately after spawn (no lag loop)
     batch = []
@@ -177,9 +181,26 @@ def spawn_walker_batch(world, count=5):
     all_spawned_ids = []
     walkers_list = []
 
+    try:
+        origin = world.get_spectator().get_location()
+    except Exception:
+        origin = None
+
     # Spawn Walkers
     for _ in range(count):
-        loc = world.get_random_location_from_navigation()
+        loc = None
+        # Try up to 20 times to find a navigation point within 50 meters of spectator
+        if origin:
+            for _attempt in range(20):
+                l = world.get_random_location_from_navigation()
+                if l and l.distance(origin) < 50.0:
+                    loc = l
+                    break
+        
+        # Fallback to any random location if no nearby one found or no origin
+        if not loc:
+            loc = world.get_random_location_from_navigation()
+            
         if not loc: continue
         walker = world.try_spawn_actor(random.choice(walker_bps), carla.Transform(loc))
         if walker:

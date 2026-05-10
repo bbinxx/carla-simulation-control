@@ -1519,7 +1519,14 @@
 
             <div id="camBadge"
               style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.6); color:var(--c-accent); font-size:0.55rem; font-family:'Share Tech Mono'; padding:2px 6px; border:1px solid var(--border-hi); display:none; align-items:center; gap:8px;">
-              <span>CAM ID: <span id="camBadgeId">--</span></span>
+              <span>NAME: <span id="camBadgeName">--</span></span>
+              <span>ID: <span id="camBadgeId">--</span></span>
+              <button onclick="renameCamera()"
+                style="background:var(--c-yellow); color:#000; border:none; font-size:0.5rem; padding:1px 4px; cursor:pointer; font-weight:bold;"
+                title="Rename this sensor">RENAME</button>
+              <button onclick="jumpToCamera()"
+                style="background:var(--c-green); color:#000; border:none; font-size:0.5rem; padding:1px 4px; cursor:pointer; font-weight:bold;"
+                title="Move spectator to this camera">JUMP</button>
               <button onclick="copyCamLink()"
                 style="background:var(--c-accent); color:#000; border:none; font-size:0.5rem; padding:1px 4px; cursor:pointer; font-weight:bold;"
                 title="Copy Live Feed Link">COPY LINK</button>
@@ -1562,10 +1569,11 @@
             </div>
 
             <div class="sec-head">LOCATION PRESETS</div>
-            <div class="field" style="margin: 0 0 12px 0;">
-              <select id="camSavedLocations" onchange="camLoadPosition(this.value)" style="font-size: 0.75rem;">
+            <div class="field" style="margin: 0 0 12px 0; display: flex; gap: 4px;">
+              <select id="camSavedLocations" onchange="camLoadPosition(this.value)" style="font-size: 0.75rem; flex: 1;">
                 <option value="">-- Load Saved Position --</option>
               </select>
+              <button class="btn btn-danger btn-sm" onclick="camDeletePosition()" style="padding: 0 8px;" title="Delete Selected Position">X</button>
             </div>
 
             <div class="sec-head">GLOBAL CAMERA SETUPS</div>
@@ -1573,10 +1581,11 @@
               <button class="btn btn-primary btn-sm" onclick="saveCameraSetup()" style="flex: 1;">SAVE ALL AS
                 SETUP</button>
             </div>
-            <div class="field" style="margin: 0;">
-              <select id="camSavedSetups" onchange="loadCameraSetup(this.value)" style="font-size: 0.75rem;">
+            <div class="field" style="margin: 0; display: flex; gap: 4px;">
+              <select id="camSavedSetups" onchange="loadCameraSetup(this.value)" style="font-size: 0.75rem; flex: 1;">
                 <option value="">-- Load Camera Setup --</option>
               </select>
+              <button class="btn btn-danger btn-sm" onclick="deleteCameraSetup()" style="padding: 0 8px;" title="Delete Selected Setup">X</button>
             </div>
           </div>
         </div>
