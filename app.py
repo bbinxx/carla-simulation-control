@@ -59,4 +59,7 @@ def create_app() -> Flask:
 app = create_app()
 
 if __name__ == "__main__":
+    import webbrowser
+    from threading import Timer
+    Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
     app.run(host="0.0.0.0", port=5000, threaded=True)

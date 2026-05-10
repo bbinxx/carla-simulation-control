@@ -38,7 +38,9 @@ data/
 *.db
 *.sqlite3
 *.sqlite
-history.db
+*.db-shm
+*.db-wal
+!history.db
 
 # IDEs and environments
 .vscode/
