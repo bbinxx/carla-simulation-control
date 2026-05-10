@@ -53,6 +53,7 @@ function openWin(id, skipSave) {
   }
   // Notify connection module when actors tab is opened via window
   if (id === 'win-actors') setActorsTabOpen(true);
+  if (id === 'win-traffic') setTrafficTabOpen(true);
 
   updateWaybarFocus();
   if (!skipSave) saveState();
@@ -74,6 +75,7 @@ function closeWin(id) {
     camPollInterval = null;
   }
   if (id === 'win-actors') setActorsTabOpen(false);
+  if (id === 'win-traffic') setTrafficTabOpen(false);
 
   updateWaybarFocus();
   saveState();
@@ -208,6 +210,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Start polling — will detect if server is already connected
   startPolling();
+
+  // Keyboard Shortcuts
+  document.addEventListener('keydown', e => {
+    // Ignore if typing in an input or textarea
+    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+    const key = e.key.toUpperCase();
+    
+    // Window Toggles
+    if (e.key === 'F1') { e.preventDefault(); toggleWin('win-connect'); }
+    if (e.key === 'F2') { e.preventDefault(); toggleWin('win-spectator'); }
+    if (e.key === 'F3') { e.preventDefault(); toggleWin('win-cameras'); }
+    if (e.key === 'F4') { e.preventDefault(); toggleWin('win-weather'); }
+    if (e.key === 'F5') { e.preventDefault(); location.reload(); }
+    
+    // Quick Actions
+    if (e.altKey && key === 'S') { // Alt + S: Spawn Vehicle
+        if (typeof spawnType === 'function') spawnType('rgb'); // Default spawn
+        else toast('Spawn function not available', 'warn');
+    }
+    if (e.altKey && key === 'C') { // Alt + C: Clear Actors
+        if (confirm('Clear all spawned actors?')) {
+            api('/destroy/all', 'POST').then(res => {
+                if (res.success) toast(`Cleared ${res.destroyed} actors`, 'ok');
+            });
+        }
+    }
+    if (e.key === ' ') { // Space: Stop/Emergency (if control enabled)
+        const ctrl = document.getElementById('controlToggle');
+        if (ctrl && ctrl.checked) {
+            e.preventDefault();
+            api('/control/set', 'POST', { enabled: false }).then(() => {
+                toast('EMERGENCY STOP (Control Locked)', 'err');
+                ctrl.checked = false;
+            });
+        }
+    }
+    if (e.key === 'Escape') {
+        // Close the top-most window that is not pinned
+        const wins = Array.from(document.querySelectorAll('.win.open:not(.pinned)'))
+            .sort((a, b) => parseInt(b.style.zIndex || 0) - parseInt(a.style.zIndex || 0));
+        if (wins.length > 0) closeWin(wins[0].id);
+    }
+  });
 
   // Ensure connect window is open on first load
   const state = loadState();

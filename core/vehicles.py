@@ -245,13 +245,16 @@ def _stop_line_waypoint(vehicle):
     except Exception:
         return None
 
-def precision_red_light_stop(world):
+def precision_red_light_stop(world, actors=None):
     """
     Call once per tick. Snaps vehicles that have stopped for a red light
     to sit exactly at the stop line (zero gap).
     """
     try:
-        for v in world.get_actors().filter("vehicle.*"):
+        target_actors = actors if actors is not None else world.get_actors()
+        for v in target_actors:
+            if not v.type_id.startswith("vehicle."):
+                continue
             if v.get_traffic_light_state() != carla.TrafficLightState.Red:
                 continue
 
@@ -283,13 +286,16 @@ def precision_red_light_stop(world):
     except Exception:
         pass
 
-def handle_green_light_resume(world):
+def handle_green_light_resume(world, actors=None):
     """
     Call once per tick. Gives vehicles a small nudge forward when traffic light turns green
     to help them resume movement if they were snapped to the stop line.
     """
     try:
-        for v in world.get_actors().filter("vehicle.*"):
+        target_actors = actors if actors is not None else world.get_actors()
+        for v in target_actors:
+            if not v.type_id.startswith("vehicle."):
+                continue
             tl_state = v.get_traffic_light_state()
             if tl_state != carla.TrafficLightState.Green:
                 continue

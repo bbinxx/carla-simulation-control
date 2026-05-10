@@ -39,8 +39,10 @@ def simulation_loop():
                 tick_count += 1
 
                 if tick_count % 10 == 0:
-                    precision_red_light_stop(world)
-                    handle_green_light_resume(world)
+                    # Fetch actors once per cycle for all logic functions
+                    actors = list(world.get_actors())
+                    precision_red_light_stop(world, actors)
+                    handle_green_light_resume(world, actors)
 
             except carla.client.TimeoutException:
                 logger.warning("CARLA tick timeout — simulator is slow or network is saturated")

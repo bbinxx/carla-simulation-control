@@ -57,6 +57,33 @@ def traffic_light_set():
     return jsonify({"success": True})
 
 
+@blueprint.route("/traffic_light/<int:tl_id>/set/<string:state>", methods=["GET", "POST"])
+@ensure_control
+@require_carla
+def traffic_light_set_by_url(tl_id, state):
+    world = get_world()
+    actor = world.get_actor(tl_id)
+    if not actor or "traffic_light" not in actor.type_id:
+        return jsonify({"success": False, "error": "Traffic light not found"}), 404
+
+    state_key = state.lower()
+    valid_states = {"red", "yellow", "green"}
+    if state_key not in valid_states:
+        return jsonify({"success": False, "error": f"Invalid state. Use one of: {', '.join(valid_states)}"}), 400
+
+    if state_key in TL_STATE_MAP:
+        actor.set_state(TL_STATE_MAP[state_key])
+        # Freeze the light so it stays in the requested state, as is typical when manually overriding
+        actor.freeze(True)
+
+    return jsonify({
+        "success": True, 
+        "id": tl_id, 
+        "state": state_key, 
+        "message": f"Traffic light {tl_id} successfully set to {state_key}"
+    })
+
+
 @blueprint.route("/traffic_light/freeze_all", methods=["POST"])
 @ensure_control
 @require_carla

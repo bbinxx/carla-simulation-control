@@ -4,10 +4,16 @@
 
 let pollInterval    = null;
 let _actorsTabOpen  = false;   // true when the Actors tab is visible
+let _trafficTabOpen = false;   // true when the Traffic tab is visible
 
 // ── Socket.IO Status Sync ──────────────────────────────────────
-if (typeof socket !== 'undefined' && socket) {
-  socket.on('status_update', (data) => {
+socket.on('connect', () => {
+  console.log('Socket.IO connected');
+  // Join spectator room for high-freq updates
+  socket.emit('join_room', { room: 'spectator' });
+});
+
+socket.on('status_update', (data) => {
     if (!data.connected) {
       if (document.getElementById('connectBtn').style.display === 'none') {
         setConnected(false);
@@ -35,14 +41,38 @@ if (typeof socket !== 'undefined' && socket) {
       buildWeatherSliders(data.weather);
     }
 
+    // Update Health Stats
+    if (data.health) {
+        const cpu = document.getElementById('statCPU');
+        const ram = document.getElementById('statRAM');
+        if (cpu) {
+            cpu.textContent = `${data.health.cpu}%`;
+            if (data.health.cpu > 80) cpu.style.color = 'var(--c-red)';
+            else if (data.health.cpu > 50) cpu.style.color = 'var(--c-yellow)';
+            else cpu.style.color = 'var(--c-accent)';
+        }
+        if (ram) ram.textContent = `${data.health.ram}MB`;
+    }
+
     // Heavy actor table — only when the actors tab is open
     if (_actorsTabOpen) {
       api('/api/status/actors').then(full => {
         renderActorTable((full && full.actors) || []);
       });
     }
+
+    // Traffic light table — only when the traffic tab is open
+    if (_trafficTabOpen && data.traffic_lights) {
+      renderTrafficLights(data.traffic_lights);
+    }
   });
-}
+
+  // High-frequency spectator updates (~10Hz)
+  socket.on('spectator_update', (data) => {
+    if (typeof updateSpectatorDisplay === 'function') {
+        updateSpectatorDisplay(data);
+    }
+  });
 
 // ── Connected state UI ─────────────────────────────────────────
 function setConnected(state, data = {}) {
@@ -183,6 +213,14 @@ function setActorsTabOpen(isOpen) {
   }
 }
 
+function setTrafficTabOpen(isOpen) {
+  _trafficTabOpen = isOpen;
+  if (isOpen) {
+    // Fetch immediately when tab opens
+    loadTrafficLights();
+  }
+}
+
 function renderActorTable(actors) {
   const tbody = document.getElementById('actorTableBody');
   if (!tbody) return;
@@ -229,5 +267,40 @@ async function toggleControl(enabled) {
     addLog(`System: Vehicle control ${enabled ? 'unlocked' : 'locked'}.`, enabled ? 'info' : 'warn');
   } else {
     toast('Error toggling control: ' + res.error, 'err');
+  }
+}
+
+// ── Quick Actions ──────────────────────────────────────────────
+async function spawnNPCBatch() {
+  toast('Spawning NPC batch...');
+  const res = await api('/spawn/npc', 'POST', { count: 10 });
+  if (res.success) {
+    toast(`Spawned ${res.spawned} NPCs`, 'ok');
+    addLog(`Quick Action: Spawned 10 NPCs`, 'ok');
+  } else {
+    toast('Batch spawn failed: ' + res.error, 'err');
+  }
+}
+
+async function emergencyStop() {
+  toast('EMERGENCY STOP...', 'err');
+  const res = await api('/control/set', 'POST', { enabled: false });
+  if (res.success) {
+    const cb = document.getElementById('controlToggle');
+    if (cb) cb.checked = false;
+    addLog('EMERGENCY STOP triggered by user', 'err');
+    toast('CONTROL LOCKED', 'err');
+  }
+}
+
+async function clearAllActors() {
+  if (!confirm('Permanently destroy all spawned actors?')) return;
+  toast('Clearing actors...');
+  const res = await api('/destroy/all', 'POST');
+  if (res.success) {
+    toast(`Cleared ${res.destroyed} actors`, 'ok');
+    addLog(`Quick Action: Cleared all actors (${res.destroyed} removed)`, 'warn');
+  } else {
+    toast('Clear failed: ' + res.error, 'err');
   }
 }

@@ -114,6 +114,31 @@ def debug_streams():
     return jsonify(get_camera_status())
 
 
+@blueprint.route("/health")
+def health_check():
+    import psutil
+    import os
+    process = psutil.Process(os.getpid())
+    
+    with state_lock:
+        connected = carla_state.get("connected", False)
+        host = carla_state.get("host", "N/A")
+        port = carla_state.get("port", "N/A")
+        map_name = carla_state.get("map", "N/A")
+
+    return jsonify({
+        "status": "online",
+        "cpu_percent": psutil.cpu_percent(),
+        "memory_mb": round(process.memory_info().rss / (1024 * 1024), 2),
+        "carla": {
+            "connected": connected,
+            "host": host,
+            "port": port,
+            "map": map_name
+        }
+    })
+
+
 @blueprint.route("/video_feed")
 def video_feed():
     raw      = request.args.get("id", "")

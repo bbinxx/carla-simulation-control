@@ -5,16 +5,27 @@
 async function loadTrafficLights() {
   const radius = document.getElementById('tlRadius').value;
   const data   = await api('/traffic_lights?radius=' + radius);
-  const tbody  = document.getElementById('tlTableBody');
-  if (!data.success) {
-    tbody.innerHTML = `<tr><td colspan="5" class="tbl-empty tbl-err">${data.error}</td></tr>`;
-    return;
+  if (data.success) {
+    renderTrafficLights(data.lights);
+    toast(`${data.lights.length} light(s)`, 'ok');
+    addLog(`Traffic lights: ${data.lights.length} within ${radius}m`, 'ok');
+  } else {
+    const tbody  = document.getElementById('tlTableBody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="tbl-empty tbl-err">${data.error}</td></tr>`;
   }
-  if (data.lights.length === 0) {
+}
+
+function renderTrafficLights(lights) {
+  const tbody  = document.getElementById('tlTableBody');
+  if (!tbody) return;
+
+  if (!lights || lights.length === 0) {
+    const radius = document.getElementById('tlRadius')?.value || 200;
     tbody.innerHTML = `<tr><td colspan="5" class="tbl-empty">No lights within ${radius}m</td></tr>`;
     return;
   }
-  tbody.innerHTML = data.lights.map(tl => {
+
+  tbody.innerHTML = lights.map(tl => {
     const s   = tl.state.toLowerCase();
     const cls = s === 'red' ? 'tl-r' : s === 'green' ? 'tl-g' : s === 'yellow' ? 'tl-y' : 'tl-o';
     return `<tr>
@@ -31,8 +42,6 @@ async function loadTrafficLights() {
       <td><button class="btn btn-cyan btn-xs" onclick="freezeTL(${tl.id})">FRZ</button></td>
     </tr>`;
   }).join('');
-  toast(`${data.lights.length} light(s)`, 'ok');
-  addLog(`Traffic lights: ${data.lights.length} within ${radius}m`, 'ok');
 }
 
 async function setTL(id, state) {

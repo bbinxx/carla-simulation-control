@@ -9,14 +9,29 @@ let joystickVector = { x: 0, y: 0 };
 let joystickInterval = null;
 const joystickMaxRadius = 44;
 
+let _lastDisp = { x: 0, y: 0, z: 0, p: 0, ya: 0, r: 0 };
+
 function updateSpectatorDisplay(s) {
   currentSpectator = { ...s };
-  document.getElementById('sX').textContent     = s.x;
-  document.getElementById('sY').textContent     = s.y;
-  document.getElementById('sZ').textContent     = s.z;
-  document.getElementById('sPitch').textContent = s.pitch;
-  document.getElementById('sYaw').textContent   = s.yaw;
-  document.getElementById('sRoll').textContent  = s.roll;
+  
+  // Throttle DOM updates: only update if delta is significant
+  const dx = Math.abs(s.x - _lastDisp.x);
+  const dy = Math.abs(s.y - _lastDisp.y);
+  const dz = Math.abs(s.z - _lastDisp.z);
+  const dp = Math.abs(s.pitch - _lastDisp.p);
+  const dya = Math.abs(s.yaw - _lastDisp.ya);
+  const dr = Math.abs(s.roll - _lastDisp.r);
+
+  if (dx > 0.01 || dy > 0.01 || dz > 0.01 || dp > 0.1 || dya > 0.1 || dr > 0.1) {
+      document.getElementById('sX').textContent     = Number(s.x).toFixed(2);
+      document.getElementById('sY').textContent     = Number(s.y).toFixed(2);
+      document.getElementById('sZ').textContent     = Number(s.z).toFixed(2);
+      document.getElementById('sPitch').textContent = Math.round(s.pitch);
+      document.getElementById('sYaw').textContent   = Math.round(s.yaw);
+      document.getElementById('sRoll').textContent  = Math.round(s.roll);
+      
+      _lastDisp = { x: s.x, y: s.y, z: s.z, p: s.pitch, ya: s.yaw, r: s.roll };
+  }
 }
 
 async function fetchSpectator() {

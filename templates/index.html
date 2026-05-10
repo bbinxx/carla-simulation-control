@@ -1301,6 +1301,21 @@
       <div class="wb-icon">LOG</div>
       <div class="wb-label">LOG</div>
     </div>
+    
+    <div class="waybar-sep"></div>
+
+    <div class="waybar-btn" onclick="spawnNPCBatch()" title="Spawn 10 NPCs (Alt+N)" style="color:var(--c-green);">
+      <div class="wb-icon"><i class="fas fa-users"></i>+</div>
+      <div class="wb-label">NPC+</div>
+    </div>
+    <div class="waybar-btn" onclick="emergencyStop()" title="Emergency Stop (Space)" style="color:var(--c-red);">
+      <div class="wb-icon"><i class="fas fa-hand-paper"></i>!!</div>
+      <div class="wb-label">STOP</div>
+    </div>
+    <div class="waybar-btn" onclick="clearAllActors()" title="Clear All Actors (Alt+C)" style="color:var(--c-yellow);">
+      <div class="wb-icon"><i class="fas fa-trash-alt"></i>*</div>
+      <div class="wb-label">CLEAR</div>
+    </div>
   </aside>
 
   <!-- ═══════════════════════════════════
@@ -1318,6 +1333,9 @@
     <div class="tb-stat"><span class="k">VEH</span><span id="statVehicles" class="v">0</span></div>
     <div class="tb-stat"><span class="k">WLK</span><span id="statWalkers" class="v">0</span></div>
     <div class="tb-stat"><span class="k">SNS</span><span id="statSensors" class="v">0</span></div>
+    <div class="tb-div"></div>
+    <div class="tb-stat"><span class="k">CPU</span><span id="statCPU" class="v">--%</span></div>
+    <div class="tb-stat"><span class="k">RAM</span><span id="statRAM" class="v">--MB</span></div>
     <div class="tb-spacer"></div>
     <div class="font-controls">
       <span class="fc-lbl">FONT</span>
@@ -1384,6 +1402,15 @@
       <div class="info-row"><span class="k">ACTORS</span><span class="v" id="infoActors">--</span></div>
       <button class="btn btn-warn btn-full btn-sm" style="margin-top:10px;" onclick="toggleDebugBboxes()"
         id="debugBoxesBtn">TOGGLE DEBUG BBOXES</button>
+        
+      <div class="sec-head" style="margin-top:15px;">Keyboard Shortcuts</div>
+      <div style="font-size:0.65rem; color:var(--c-dim); line-height:1.5;">
+        <div style="display:flex; justify-content:space-between;"><span>F1 - F4</span><span>Toggle Windows</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>Space</span><span>Emergency Stop</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>Alt + S</span><span>Quick Spawn</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>Alt + C</span><span>Clear All</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>Esc</span><span>Close Window</span></div>
+      </div>
     </div>
     <div class="win-resize"></div>
   </div>
