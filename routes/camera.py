@@ -20,15 +20,17 @@ def list_cameras():
         world = get_world()
         cameras = get_all_cameras(world)
         
-        # Merge with metadata (names)
+        # Merge with metadata (names and directions)
         conn = get_connection()
         c = conn.cursor()
-        c.execute("SELECT actor_id, name FROM camera_metadata")
-        names = {r["actor_id"]: r["name"] for r in c.fetchall()}
+        c.execute("SELECT actor_id, name, direction FROM camera_metadata")
+        meta = {r["actor_id"]: {"name": r["name"], "direction": r["direction"]} for r in c.fetchall()}
         conn.close()
         
         for cam in cameras:
-            cam["name"] = names.get(cam["id"], f"Sensor #{cam['id']}")
+            m = meta.get(cam["id"], {})
+            cam["name"] = m.get("name", f"Sensor #{cam['id']}")
+            cam["direction"] = m.get("direction")
             
         return jsonify({"success": True, "cameras": cameras})
     except Exception as e:
@@ -47,11 +49,39 @@ def rename_camera():
             
         conn = get_connection()
         c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO camera_metadata (actor_id, name) VALUES (?, ?)", (actor_id, name))
+        # Check if exists to avoid wiping direction
+        c.execute("SELECT actor_id FROM camera_metadata WHERE actor_id = ?", (actor_id,))
+        if c.fetchone():
+            c.execute("UPDATE camera_metadata SET name = ? WHERE actor_id = ?", (name, actor_id))
+        else:
+            c.execute("INSERT INTO camera_metadata (actor_id, name) VALUES (?, ?)", (actor_id, name))
         conn.commit()
         conn.close()
         
         return jsonify({"success": True, "id": actor_id, "name": name})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@blueprint.route("/camera/set_direction", methods=["POST"])
+def set_direction():
+    try:
+        d = request.json or {}
+        actor_id = int(d.get("id"))
+        direction = d.get("direction") # N, S, E, W, or None
+        
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT actor_id FROM camera_metadata WHERE actor_id = ?", (actor_id,))
+        if c.fetchone():
+            c.execute("UPDATE camera_metadata SET direction = ? WHERE actor_id = ?", (direction, actor_id))
+        else:
+            c.execute("INSERT INTO camera_metadata (actor_id, name, direction) VALUES (?, ?, ?)", 
+                      (actor_id, f"Sensor #{actor_id}", direction))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"success": True, "id": actor_id, "direction": direction})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -87,6 +117,12 @@ def spawn_camera():
             transform = world.get_spectator().get_transform()
 
         camera = world.spawn_actor(bp, transform)
+        
+        # Prevent "out of scope" warnings by registering immediately
+        from core.camera import _camera_registry, _registry_lock
+        with _registry_lock:
+            _camera_registry[camera.id] = camera
+            
         logger.info(f"Spawned camera #{camera.id} ({bp_name})")
         return jsonify({"success": True, "actor_id": camera.id, "type": camera.type_id})
     except Exception as e:
@@ -189,11 +225,15 @@ def delete_camera():
         if was_selected:
             set_stream_source(None)
 
-        # Remove listener reference so GC can collect
+        # Remove from all registries so GC can collect
         with _listeners_lock:
             _listener_actors.pop(actor_id, None)
+        
+        from core.camera import _camera_registry, _registry_lock
+        with _registry_lock:
+            _camera_registry.pop(actor_id, None)
 
-        # Cleanup metadata
+        # Metadata cleanup
         try:
             conn = get_connection()
             conn.execute("DELETE FROM camera_metadata WHERE actor_id = ?", (actor_id,))
@@ -201,14 +241,31 @@ def delete_camera():
             conn.close()
         except: pass
 
-        if hasattr(actor, 'stop'):
+        # Stop and destroy
+        success = False
+        try:
+            if hasattr(actor, 'stop'):
+                try: actor.stop()
+                except: pass
+            actor.destroy()
+            success = True
+        except Exception as e:
+            logger.warning(f"Primary destroy failed for #{actor_id}: {e}")
+
+        # Fallback: Batch destruction
+        with state_lock:
+            client = carla_state.get("client")
+        if client:
             try:
-                actor.stop()
-            except Exception:
-                pass
-        actor.destroy()
-        logger.info(f"Destroyed camera #{actor_id}")
-        return jsonify({"success": True})
+                client.apply_batch_sync([carla.command.DestroyActor(actor_id)], True)
+                success = True
+            except Exception as e:
+                logger.warning(f"Batch destroy failed for #{actor_id}: {e}")
+
+        if success:
+            logger.info(f"Destroyed camera #{actor_id}")
+            return jsonify({"success": True})
+        return jsonify({"success": False, "error": "Destruction failed"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -370,10 +427,316 @@ def load_camera_setup():
         return jsonify({"success": False, "error": str(e)})
 
 
-@blueprint.route("/camera/status")
-def camera_status():
-    """Debug endpoint — returns camera streaming status."""
+@blueprint.route("/camera/live_links")
+def live_links():
+    """Returns a list of all camera live links, ordered NSEW, using network IP."""
     try:
-        return jsonify({"success": True, **get_camera_status()})
+        import socket
+        def get_ip():
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.connect(('10.255.255.255', 1))
+                IP = s.getsockname()[0]
+            except Exception:
+                IP = '127.0.0.1'
+            finally:
+                s.close()
+            return IP
+
+        ip = get_ip()
+        world = get_world()
+        if not world:
+            return "<h2>Error: CARLA World not available</h2><p>Please ensure you are connected to a CARLA server first.</p>", 400
+            
+        cameras = get_all_cameras(world)
+        
+        # Merge with metadata (names and directions)
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT actor_id, name, direction FROM camera_metadata")
+        meta = {r["actor_id"]: {"name": r["name"], "direction": r["direction"]} for r in c.fetchall()}
+        conn.close()
+        
+        for cam in cameras:
+            m = meta.get(cam["id"], {})
+            cam["name"] = m.get("name", f"Sensor #{cam['id']}")
+            cam["direction"] = m.get("direction")
+            cam["link"] = f"http://{ip}:5000/video_feed?id={cam['id']}"
+
+        def get_sort_key(cam):
+            # 1. Explicit Direction assignment
+            d = (cam.get("direction") or "").upper()
+            if d == "N": return 0
+            if d == "S": return 1
+            if d == "E": return 2
+            if d == "W": return 3
+
+            # 2. Name-based fallback
+            name = cam["name"].upper()
+            if "NORTH" in name: return 0
+            if "SOUTH" in name: return 1
+            if "EAST" in name:  return 2
+            if "WEST" in name:  return 3
+            
+            # 3. Orientation-based fallback
+            yaw = cam.get("yaw", 0)
+            if -135 < yaw <= -45: return 0
+            if 45 < yaw <= 135:   return 1
+            if -45 < yaw <= 45:    return 2
+            return 3
+
+        cameras.sort(key=get_sort_key)
+
+        # Build a premium-looking HTML response for easy copying
+        html = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Live Links - NSEW</title>
+    <style>
+        :root {{
+            --bg: #0a0b10;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --accent: #00e87a;
+            --text: #e0e0e0;
+            --link: #00d4ff;
+            --border: rgba(255, 255, 255, 0.1);
+        }}
+        body {{
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }}
+        .container {{
+            max-width: 800px;
+            width: 100%;
+        }}
+        .header {{
+            text-align: center;
+            margin-bottom: 40px;
+        }}
+        h1 {{
+            color: var(--accent);
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+        }}
+        .ip-badge {{
+            display: inline-block;
+            background: rgba(0, 232, 122, 0.1);
+            color: var(--accent);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-top: 10px;
+            border: 1px solid var(--accent);
+        }}
+        .link-list {{
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }}
+        .link-card {{
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 16px 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }}
+        .link-card:hover {{
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent);
+            transform: translateX(4px);
+        }}
+        .cam-info {{
+            display: flex;
+            flex-direction: column;
+        }}
+        .cam-name {{
+            font-weight: bold;
+            color: #ffca28;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }}
+        .cam-id {{
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: monospace;
+        }}
+        .link-container {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }}
+        .link-text {{
+            color: var(--link);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.95rem;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: all;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }}
+        .copy-btn {{
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.7rem;
+            cursor: pointer;
+            text-transform: uppercase;
+        }}
+        .copy-btn:active {{
+            transform: scale(0.95);
+        }}
+        .copy-all-btn {{
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 232, 122, 0.2);
+        }}
+        .copy-all-btn:hover {{
+            background: #00ff85;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 232, 122, 0.3);
+        }}
+        .copy-all-btn.success {{
+            background: #ffca28;
+            box-shadow: 0 4px 15px rgba(255, 202, 40, 0.2);
+        }}
+        .footer {{
+            margin-top: 40px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.75rem;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Camera Stream Hub</h1>
+            <div class="ip-badge">NETWORK IP: {ip}</div>
+            <div style="margin-top: 20px;">
+                <button class="copy-all-btn" onclick="copyAll()">COPY ALL LINKS (NSEW)</button>
+            </div>
+        </div>
+        
+        <div class="link-list">
+            {"".join([f'''
+            <div class="link-card">
+                <div class="cam-info">
+                    <span class="cam-name">{c["name"]}</span>
+                    <span class="cam-id">ID: #{c["id"]} | YAW: {c["yaw"]:.1f}°</span>
+                </div>
+                <div class="link-container">
+                    <span class="link-text" onclick="copyText(this)">{c["link"]}</span>
+                    <button class="copy-btn" onclick="copyText(this.previousElementSibling)">Copy</button>
+                </div>
+            </div>
+            ''' for c in cameras])}
+        </div>
+        
+        <div class="footer">
+            Ordered by NSEW configuration. Click "COPY ALL" to get all links at once.
+        </div>
+    </div>
+
+    <script>
+        function fallbackCopyTextToClipboard(text) {{
+            var textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Avoid scrolling to bottom
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {{
+                var successful = document.execCommand('copy');
+                var msg = successful ? 'successful' : 'unsuccessful';
+                console.log('Fallback: Copying text command was ' + msg);
+                return successful;
+            }} catch (err) {{
+                console.error('Fallback: Oops, unable to copy', err);
+                return false;
+            }} finally {{
+                document.body.removeChild(textArea);
+            }}
+        }}
+
+        function copyToClipboard(text) {{
+            if (!navigator.clipboard) {{
+                return Promise.resolve(fallbackCopyTextToClipboard(text));
+            }}
+            return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackCopyTextToClipboard(text));
+        }}
+
+        function copyText(el) {{
+            const text = el.innerText || el.textContent;
+            copyToClipboard(text).then((success) => {{
+                if (!success) return;
+                const original = el.innerText;
+                if (el.tagName === 'BUTTON') {{
+                    el.innerText = 'COPIED!';
+                    setTimeout(() => el.innerText = original, 1500);
+                }} else {{
+                    const btn = el.nextElementSibling;
+                    btn.innerText = 'COPIED!';
+                    setTimeout(() => btn.innerText = 'COPY', 1500);
+                }}
+            }});
+        }}
+
+        function copyAll() {{
+            const links = Array.from(document.querySelectorAll('.link-text'))
+                               .map(el => el.innerText.trim());
+            const text = links.join('\\n');
+            copyToClipboard(text).then((success) => {{
+                if (!success) return;
+                const btn = document.querySelector('.copy-all-btn');
+                const original = btn.innerText;
+                btn.innerText = 'ALL LINKS COPIED!';
+                btn.classList.add('success');
+                setTimeout(() => {{
+                    btn.innerText = original;
+                    btn.classList.remove('success');
+                }}, 2000);
+            }});
+        }}
+    </script>
+</body>
+</html>
+        """
+        return html
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        logger.error(f"live_links error: {e}")
+        return f"Error: {str(e)}", 500

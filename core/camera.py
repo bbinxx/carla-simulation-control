@@ -32,6 +32,10 @@ _spec_follow_active = False
 _selected_id      = None   # int or None
 _selected_id_lock = threading.Lock()
 
+# ── Camera Registry (Prevent Out-of-Scope) ────────────────────────────────────
+_camera_registry = {}      # { actor_id: actor_object }
+_registry_lock    = threading.Lock()
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Public helpers
@@ -271,50 +275,63 @@ def get_all_cameras(world):
         spec_id = _spec_camera.id if _spec_camera is not None else None
 
     cameras = []
-    for actor in world.get_actors().filter("sensor.camera.*"):
-        # Exclude the internal spectator-follow camera
-        if spec_id is not None and actor.id == spec_id:
-            continue
+    found_ids = set()
+    
+    with _registry_lock:
+        for actor in world.get_actors().filter("sensor.camera.*"):
+            # Exclude the internal spectator-follow camera
+            if spec_id is not None and actor.id == spec_id:
+                continue
+            
+            # Keep strong reference to prevent "out of scope" warnings
+            _camera_registry[actor.id] = actor
+            found_ids.add(actor.id)
+            
+            t = actor.get_transform()
+            cam = {
+                "id":        actor.id,
+                "type":      actor.type_id,
+                "x":         round(t.location.x,   2),
+                "y":         round(t.location.y,   2),
+                "z":         round(t.location.z,   2),
+                "pitch":     round(t.rotation.pitch, 2),
+                "yaw":       round(t.rotation.yaw,   2),
+                "roll":      round(t.rotation.roll,  2),
+                "parent_id": actor.parent.id if actor.parent else None,
+            }
 
-        t = actor.get_transform()
-        cam = {
-            "id":        actor.id,
-            "type":      actor.type_id,
-            "x":         round(t.location.x,   2),
-            "y":         round(t.location.y,   2),
-            "z":         round(t.location.z,   2),
-            "pitch":     round(t.rotation.pitch, 2),
-            "yaw":       round(t.rotation.yaw,   2),
-            "roll":      round(t.rotation.roll,  2),
-            "parent_id": actor.parent.id if actor.parent else None,
-        }
+            # Safely extract camera attributes (width, height, fov)
+            width, height, fov = 1280, 720, 90.0
+            attrs = getattr(actor, 'attributes', [])
 
-        # Safely extract camera attributes (width, height, fov)
-        width, height, fov = 1280, 720, 90.0
-        attrs = getattr(actor, 'attributes', [])
+            if isinstance(attrs, dict):
+                width  = int(attrs.get("image_size_x", width))
+                height = int(attrs.get("image_size_y", height))
+                fov    = float(attrs.get("fov", fov))
+            else:
+                for a in attrs:
+                    try:
+                        name = getattr(a, 'name', None)
+                        if name == "image_size_x":  width  = int(a.value)
+                        elif name == "image_size_y": height = int(a.value)
+                        elif name == "fov":          fov    = float(a.value)
+                    except (ValueError, TypeError, AttributeError):
+                        continue
 
-        if isinstance(attrs, dict):
-            width  = int(attrs.get("image_size_x", width))
-            height = int(attrs.get("image_size_y", height))
-            fov    = float(attrs.get("fov", fov))
-        else:
-            for a in attrs:
-                try:
-                    name = getattr(a, 'name', None)
-                    if name == "image_size_x":  width  = int(a.value)
-                    elif name == "image_size_y": height = int(a.value)
-                    elif name == "fov":          fov    = float(a.value)
-                except (ValueError, TypeError, AttributeError):
-                    continue
+            cam.update({
+                "width":        width,
+                "height":       height,
+                "fov":          fov,
+                "is_streaming": (actor.id == sid),
+                "has_feed":     (actor.id in _listener_actors),
+            })
+            cameras.append(cam)
 
-        cam.update({
-            "width":        width,
-            "height":       height,
-            "fov":          fov,
-            "is_streaming": (actor.id == sid),
-            "has_feed":     (actor.id in _listener_actors),
-        })
-        cameras.append(cam)
+    # Clean up stale references in registry
+    with _registry_lock:
+        stale_ids = set(_camera_registry.keys()) - found_ids
+        for sid in stale_ids:
+            _camera_registry.pop(sid, None)
 
     return cameras
 

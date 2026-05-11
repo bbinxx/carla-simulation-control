@@ -133,7 +133,16 @@ async function refreshCameras() {
     container.innerHTML = `<div style="color:var(--c-red); font-size:0.7rem; padding:10px;">Error: ${data.error}</div>`;
     return;
   }
-  
+
+  const saveSetupBtn = document.getElementById('camSaveSetupBtn');
+  if (saveSetupBtn) {
+    const hasCameras = data.cameras.length > 0;
+    saveSetupBtn.disabled = !hasCameras;
+    saveSetupBtn.style.opacity = hasCameras ? '1' : '0.4';
+    saveSetupBtn.style.cursor = hasCameras ? 'pointer' : 'not-allowed';
+    saveSetupBtn.title = hasCameras ? 'Save current camera configuration' : 'No cameras to save';
+  }
+
   if (data.cameras.length === 0) {
     container.innerHTML = `<div style="color:var(--c-dim); font-size:0.7rem; padding:10px; font-family:'Share Tech Mono'; text-align:center;">NO SENSORS FOUND</div>`;
     return;
@@ -197,6 +206,9 @@ async function selectCamera(c) {
   if (badgeId) badgeId.textContent = c.id;
   if (badgeName) badgeName.textContent = c.name;
   if (badge)   badge.style.display  = 'flex';
+  
+  const dirSel = document.getElementById('camDirectionSelect');
+  if (dirSel) dirSel.value = c.direction || "";
 
   const dBtn = document.getElementById('camDestroyBtn');
   if (dBtn) {
@@ -473,5 +485,23 @@ async function loadCameraSetup(name) {
     refreshCameras();
   } else {
     toast('Load failed: ' + res.error, 'err');
+  }
+}
+
+async function setCameraDirection() {
+  const idEl = document.getElementById('camBadgeId');
+  const dirEl = document.getElementById('camDirectionSelect');
+  const id = idEl ? idEl.textContent : null;
+  const direction = dirEl ? dirEl.value : null;
+  
+  if (!id || id === '--') return;
+  
+  toast('Updating camera direction...');
+  const res = await api('/camera/set_direction', 'POST', { id: parseInt(id), direction: direction || null });
+  if (res.success) {
+    toast('Direction updated: ' + (direction || 'None'), 'ok');
+    refreshCameras();
+  } else {
+    toast(res.error, 'err');
   }
 }

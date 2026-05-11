@@ -1497,6 +1497,7 @@
         CAMERA MANAGER
       </div>
       <div class="tb-extra">
+        <button class="btn btn-primary btn-xs" onclick="window.open('/camera/live_links', '_blank')" style="margin-right: 4px;">LIVE LINKS</button>
         <button class="btn btn-cyan btn-xs" onclick="refreshCameras()">REFRESH</button>
       </div>
       <div class="win-controls">
@@ -1551,6 +1552,15 @@
               <button onclick="renameCamera()"
                 style="background:var(--c-yellow); color:#000; border:none; font-size:0.5rem; padding:1px 4px; cursor:pointer; font-weight:bold;"
                 title="Rename this sensor">RENAME</button>
+              <select id="camDirectionSelect" onchange="setCameraDirection()"
+                style="background:var(--c-cyan); color:#000; border:none; font-size:0.5rem; padding:1px 4px; cursor:pointer; font-weight:bold; height:14px; appearance:none; -webkit-appearance:none; text-align:center; min-width:30px;"
+                title="Assign NSEW direction">
+                <option value="">DIR</option>
+                <option value="N">N</option>
+                <option value="S">S</option>
+                <option value="E">E</option>
+                <option value="W">W</option>
+              </select>
               <button onclick="jumpToCamera()"
                 style="background:var(--c-green); color:#000; border:none; font-size:0.5rem; padding:1px 4px; cursor:pointer; font-weight:bold;"
                 title="Move spectator to this camera">JUMP</button>
@@ -1602,10 +1612,13 @@
               </select>
               <button class="btn btn-danger btn-sm" onclick="camDeletePosition()" style="padding: 0 8px;" title="Delete Selected Position">X</button>
             </div>
+          </div>
 
+          <!-- Global Setups (Always Available) -->
+          <div id="camGlobalPanel" style="padding: 12px; border-top: 1px solid var(--border); background: rgba(255,255,255,0.03);">
             <div class="sec-head">GLOBAL CAMERA SETUPS</div>
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <button class="btn btn-primary btn-sm" onclick="saveCameraSetup()" style="flex: 1;">SAVE ALL AS
+              <button id="camSaveSetupBtn" class="btn btn-primary btn-sm" onclick="saveCameraSetup()" style="flex: 1;">SAVE ALL AS
                 SETUP</button>
             </div>
             <div class="field" style="margin: 0; display: flex; gap: 4px;">
@@ -1776,6 +1789,7 @@
       <div class="tb-extra">
         <input type="number" id="tlRadius" value="150" title="Radius (m)" />
         <button class="btn btn-cyan btn-sm" onclick="loadTrafficLights()">REFRESH</button>
+        <button class="btn btn-warn btn-sm" onclick="window.open('/traffic_light/api_links', '_blank')">API HUB</button>
       </div>
       <div class="win-controls">
         <div class="win-pin" onclick="togglePin('win-traffic')" title="Pin window">P</div>

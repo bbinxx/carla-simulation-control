@@ -87,7 +87,15 @@ def init_db():
 
         CREATE TABLE IF NOT EXISTS camera_metadata (
             actor_id INTEGER PRIMARY KEY,
-            name TEXT
+            name TEXT,
+            direction TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS traffic_light_metadata (
+            actor_id INTEGER PRIMARY KEY,
+            direction TEXT,
+            state TEXT,
+            is_frozen INTEGER DEFAULT 0
         );
         """)
 

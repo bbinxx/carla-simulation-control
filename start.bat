@@ -235,7 +235,7 @@ echo host = '%CARLA_HOST%' >> check_server.py
 echo port = %CARLA_PORT% >> check_server.py
 echo try: >> check_server.py
 echo     client = carla.Client(host, port) >> check_server.py
-echo     client.set_timeout(2.0) >> check_server.py
+echo     client.set_timeout(5.0) >> check_server.py
 echo     version = client.get_server_version() >> check_server.py
 echo     print(f"OK^|{host}:{port}^|{version}") >> check_server.py
 echo except Exception as e: >> check_server.py

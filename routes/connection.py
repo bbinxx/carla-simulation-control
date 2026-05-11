@@ -13,6 +13,7 @@ from config.db import get_db
 from utils.cache import world_cache
 from utils.helpers import get_actors_info, get_spectator_transform, format_weather
 from core.vehicles import sync_global_tm, enforce_traffic_rules
+from routes.traffic import apply_persisted_traffic_lights
 from threads.stream import stop_stream
 
 blueprint = Blueprint("connection", __name__)
@@ -34,7 +35,7 @@ def connect():
     data    = request.json or {}
     host    = data.get("host", "localhost")
     port    = int(data.get("port", 2000))
-    timeout = float(data.get("timeout", 10.0))
+    timeout = float(data.get("timeout", 30.0))
 
     try:
         # Stop any existing stream on reconnect
@@ -57,6 +58,7 @@ def connect():
         world_cache.set_world(world)
         sync_global_tm(world)
         enforce_traffic_rules(world)
+        apply_persisted_traffic_lights(world)
 
         with state_lock:
             carla_state.update({
@@ -83,8 +85,13 @@ def connect():
                         "host": host, "port": port, "tm_port": tm_port})
 
     except Exception as e:
-        current_app.logger.error(f"Connect failed: {e}")
-        return jsonify({"success": False, "error": str(e)})
+        error_msg = str(e)
+        current_app.logger.error(f"Connect failed: {error_msg}")
+        return jsonify({
+            "success": False, 
+            "error": error_msg,
+            "hint": "Check if CARLA is running with -world-port=2000 and that no firewall is blocking the connection."
+        })
 
 
 # ── Disconnect ─────────────────────────────────────────────────────────────────
